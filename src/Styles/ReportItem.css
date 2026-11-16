@@ -1,0 +1,252 @@
+/* ================================
+   CAMPUS LOST & FOUND
+   REPORT ITEM PAGE
+================================ */
+
+* {
+    box-sizing: border-box;
+}
+
+.report-container {
+    width: 90%;
+    max-width: 650px;
+    margin: 40px auto;
+    padding: 35px;
+    background-color: #ffffff;
+    border-radius: 14px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.10);
+    font-family: Arial, sans-serif;
+    color: #333333;
+}
+
+/* Main Heading */
+
+.report-container h1 {
+    text-align: center;
+    color: #1e3a5f;
+    font-size: 28px;
+    margin-bottom: 30px;
+}
+
+.report-container h2 {
+    color: #1e3a5f;
+    margin-top: 35px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #e5eaf0;
+}
+
+/* Form Layout */
+
+.report-container form {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.report-container form>div {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* Labels */
+
+.report-container label {
+    font-weight: 600;
+    color: #263b53;
+    font-size: 15px;
+}
+
+/* Lost and Found Radio Buttons */
+
+.report-container form>label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.report-container input[type="radio"] {
+    width: 17px;
+    height: 17px;
+    accent-color: #1e3a5f;
+    cursor: pointer;
+}
+
+.report-container form>p {
+    margin: -10px 0 5px;
+    color: #1e3a5f;
+    font-weight: 600;
+    text-transform: capitalize;
+}
+
+/* Input Fields, Dropdown and Textarea */
+
+.report-container input[type="text"],
+.report-container input[type="date"],
+.report-container select,
+.report-container textarea {
+    width: 100%;
+    padding: 13px;
+    border: 1px solid #cbd5e1;
+    border-radius: 7px;
+    font-size: 15px;
+    font-family: Arial, sans-serif;
+    outline: none;
+    background-color: #ffffff;
+    transition: 0.3s;
+}
+
+.report-container textarea {
+    min-height: 120px;
+    resize: vertical;
+}
+
+.report-container input:focus,
+.report-container select:focus,
+.report-container textarea:focus {
+    border-color: #1e3a5f;
+    box-shadow: 0 0 0 3px rgba(30, 58, 95, 0.10);
+}
+
+/* Image Upload */
+
+.report-container input[type="file"] {
+    width: 100%;
+    padding: 12px;
+    border: 2px dashed #aab8c8;
+    border-radius: 8px;
+    background-color: #f8fafc;
+    cursor: pointer;
+}
+
+/* Image Preview */
+
+.report-container img {
+    display: block;
+    max-width: 200px;
+    width: 100%;
+    height: auto;
+    margin-top: 10px;
+    border-radius: 9px;
+    border: 1px solid #dbe2ea;
+    object-fit: cover;
+}
+
+/* Submit Button */
+
+.report-container form>button[type="submit"] {
+    width: 100%;
+    padding: 14px;
+    margin-top: 10px;
+    background-color: #1e3a5f;
+    color: white;
+    border: none;
+    border-radius: 7px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.report-container form>button[type="submit"]:hover {
+    background-color: #315c8a;
+}
+
+/* Submitted Reports */
+
+.reports-section {
+    margin-top: 35px;
+}
+
+.report-card {
+    margin-top: 18px;
+    padding: 20px;
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.report-card h3 {
+    color: #1e3a5f;
+    font-size: 20px;
+    margin-top: 0;
+}
+
+.report-card p {
+    color: #555555;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+/* Report Status */
+
+.report-status {
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.report-status.lost {
+    background-color: #fee2e2;
+    color: #b91c1c;
+}
+
+.report-status.found {
+    background-color: #dcfce7;
+    color: #15803d;
+}
+
+/* Delete Button */
+
+.report-card button {
+    margin-top: 12px;
+    padding: 10px 18px;
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.report-card button:hover {
+    background-color: #b91c1c;
+}
+
+/* Empty Reports Message */
+
+.empty-reports {
+    text-align: center;
+    color: #777777;
+    padding: 20px;
+    background-color: #f8fafc;
+    border-radius: 8px;
+}
+
+/* Responsive Design */
+
+@media (max-width: 600px) {
+    .report-container {
+        width: 95%;
+        padding: 20px;
+        margin: 20px auto;
+    }
+
+    .report-container h1 {
+        font-size: 23px;
+    }
+
+    .report-card {
+        padding: 15px;
+    }
+
+    .report-container form>button[type="submit"] {
+        padding: 12px;
+    }
+}
