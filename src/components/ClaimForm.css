@@ -1,0 +1,94 @@
+
+.claim-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(15, 23, 42, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.claim-card {
+  position: relative;
+  background: white;
+  width: 100%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 30px;
+  border-radius: 16px;
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
+}
+
+.claim-card h2 {
+  font-size: 25px;
+  font-weight: bold;
+  color: #1e293b;
+  margin-bottom: 8px;
+}
+
+.claim-card p {
+  color: #64748b;
+  margin-bottom: 20px;
+}
+
+.claim-close {
+  position: absolute;
+  top: 15px;
+  right: 18px;
+  border: none;
+  background: #f1f5f9;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.claim-card form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.claim-card label {
+  font-weight: 600;
+  color: #334155;
+  margin-top: 8px;
+}
+
+.claim-card input,
+.claim-card textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  outline: none;
+}
+
+.claim-card input:focus,
+.claim-card textarea:focus {
+  border-color: #2563eb;
+}
+
+.claim-card textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+.claim-card form button,
+.claim-card > button:not(.claim-close) {
+  background: #2563eb;
+  color: white;
+  padding: 13px;
+  border: none;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  margin-top: 15px;
+}
+
+.claim-card form button:hover {
+  background: #1d4ed8;
+}
