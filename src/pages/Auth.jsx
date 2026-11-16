@@ -244,8 +244,6 @@ const Auth = () => {
 
             <p className="mt-7 text-center text-xs leading-5 text-slate-400">
               Campus Lost & Found Management System
-              <br />
-              University Industrial Attachment Project
             </p>
 
           </div>
