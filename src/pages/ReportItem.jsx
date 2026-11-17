@@ -1,160 +1,133 @@
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { apiRequest } from "../services/api";
 import "../Styles/ReportItem.css";
 
-const STORAGE_KEY = "campus_lost_found_items";
+const normalizeItem = (item) => ({
+  ...item,
+  name: item.title,
+  status: item.type === "LOST" ? "Lost" : "Found",
+  date: item.eventDate,
+});
+
+const getToday = () => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+};
+
+const getItemList = (data) => {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.content)) return data.content;
+  if (Array.isArray(data?.items)) return data.items;
+  return [];
+};
 
 const ReportItem = () => {
   const [formData, setFormData] = useState({
     name: "",
     status: "lost",
-    category: "",
     location: "",
     date: "",
     description: "",
-    image: "",
   });
 
-  const [imagePreview, setImagePreview] = useState("");
-  const [reports, setReports] = useState(() => {
-    try {
-      const saved = JSON.parse(
-        localStorage.getItem(STORAGE_KEY) || "[]"
-      );
-      return Array.isArray(saved) ? saved : [];
-    } catch {
-      return [];
-    }
-  });
-
+  const [reports, setReports] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
+  useEffect(() => {
+    const fetchReports = async () => {
+      try {
+        const data = await apiRequest("/api/items/");
+        setReports(getItemList(data).map(normalizeItem));
+      } catch (err) {
+        setError(err.message || "Unable to load reports.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchReports();
+  }, []);
+
+  const handleChange = (event) => {
+    const { name, value } = event.target;
 
     setFormData((previous) => ({
       ...previous,
       [name]: value,
     }));
+
+    setError("");
+    setSuccess("");
   };
 
-  // Image upload and preview
-  const handleImageChange = (e) => {
-    const file = e.target.files?.[0];
-
-    if (!file) return;
-
-    if (!file.type.startsWith("image/")) {
-      setError("Please select a valid image.");
-      e.target.value = "";
-      return;
-    }
-
-    if (file.size > 1024 * 1024) {
-      setError("Image size must be less than 1 MB.");
-      e.target.value = "";
-      return;
-    }
-
-    const reader = new FileReader();
-
-    reader.onloadend = () => {
-      setImagePreview(reader.result);
-
-      setFormData((previous) => ({
-        ...previous,
-        image: reader.result,
-      }));
-
-      setError("");
-    };
-
-    reader.readAsDataURL(file);
-  };
-
-  // Reset form
   const resetForm = () => {
     setFormData({
       name: "",
       status: "lost",
-      category: "",
       location: "",
       date: "",
       description: "",
-      image: "",
     });
-
-    setImagePreview("");
-    setError("");
-
-    const fileInput = document.getElementById("report-image");
-    if (fileInput) fileInput.value = "";
   };
 
-  // Submit report
-  const handleSubmit = (e) => {
-    e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
     setError("");
+    setSuccess("");
+
+    if (formData.date > getToday()) {
+      setError("Event date cannot be in the future.");
+      return;
+    }
 
     try {
-      const newReport = {
-        ...formData,
-        id: `user-${Date.now()}`,
-        status:
-          formData.status.charAt(0).toUpperCase() +
-          formData.status.slice(1),
-        image: formData.image || "",
+      setSubmitting(true);
+
+      const payload = {
+        title: formData.name.trim(),
+        description: formData.description.trim(),
+        type: formData.status.toUpperCase(),
+        location: formData.location.trim(),
+        eventDate: formData.date,
       };
 
-      const savedData = JSON.parse(
-        localStorage.getItem(STORAGE_KEY) || "[]"
-      );
+      const createdItem = await apiRequest("/api/items/", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
 
-      const updatedReports = [
-        newReport,
-        ...(Array.isArray(savedData) ? savedData : []),
-      ];
+      if (createdItem && createdItem.id) {
+        setReports((previous) => [
+          normalizeItem(createdItem),
+          ...previous,
+        ]);
+      } else {
+        const data = await apiRequest("/api/items/");
+        setReports(getItemList(data).map(normalizeItem));
+      }
 
-      localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify(updatedReports)
-      );
-
-      setReports(updatedReports);
       resetForm();
+      setSuccess("Your report has been submitted successfully.");
     } catch (err) {
-      console.error("Report submission error:", err);
-      setError("Unable to submit report. Please try again.");
-    }
-  };
-
-  // Delete report
-  const handleDelete = (id) => {
-    const updatedReports = reports.filter(
-      (report) => String(report.id) !== String(id)
-    );
-
-    try {
-      localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify(updatedReports)
-      );
-
-      setReports(updatedReports);
-    } catch (err) {
-      console.error("Could not delete report:", err);
-      setError("Unable to delete report.");
+      setError(err.message || "Unable to submit report.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
   return (
     <div className="report-container">
-
       <h1>Report an Item</h1>
 
       <form onSubmit={handleSubmit}>
-
-        {/* Item Name */}
         <div>
           <label htmlFor="item-name">Item Name *</label>
 
@@ -169,55 +142,32 @@ const ReportItem = () => {
           />
         </div>
 
-        {/* Lost or Found */}
-        <label>
-          <input
-            type="radio"
-            name="status"
-            value="lost"
-            checked={formData.status === "lost"}
-            onChange={handleChange}
-          />
-          Lost Item
-        </label>
-
-        <label>
-          <input
-            type="radio"
-            name="status"
-            value="found"
-            checked={formData.status === "found"}
-            onChange={handleChange}
-          />
-          Found Item
-        </label>
-
-        <p>{formData.status} Item</p>
-
-        {/* Category */}
         <div>
-          <label htmlFor="item-category">Category *</label>
+          <label>Lost or Found *</label>
 
-          <select
-            id="item-category"
-            name="category"
-            value={formData.category}
-            onChange={handleChange}
-            required
-          >
-            <option value="">Select Category</option>
-            <option value="Bags">Bags</option>
-            <option value="Electronics">Electronics</option>
-            <option value="Accessories">Accessories</option>
-            <option value="Personal Accessories">
-              Personal Accessories
-            </option>
-            <option value="Documents">Documents</option>
-            <option value="Others">Others</option>
-          </select>
+          <label>
+            <input
+              type="radio"
+              name="status"
+              value="lost"
+              checked={formData.status === "lost"}
+              onChange={handleChange}
+            />
+            Lost Item
+          </label>
+
+          <label>
+            <input
+              type="radio"
+              name="status"
+              value="found"
+              checked={formData.status === "found"}
+              onChange={handleChange}
+            />
+            Found Item
+          </label>
         </div>
 
-        {/* Location */}
         <div>
           <label htmlFor="item-location">Location *</label>
 
@@ -232,7 +182,6 @@ const ReportItem = () => {
           />
         </div>
 
-        {/* Date */}
         <div>
           <label htmlFor="item-date">Date *</label>
 
@@ -242,11 +191,11 @@ const ReportItem = () => {
             name="date"
             value={formData.date}
             onChange={handleChange}
+            max={getToday()}
             required
           />
         </div>
 
-        {/* Description */}
         <div>
           <label htmlFor="item-description">
             Item Description *
@@ -262,55 +211,27 @@ const ReportItem = () => {
           />
         </div>
 
-        {/* Image Upload */}
-        <div>
-          <label htmlFor="report-image">Item Image</label>
-
-          <input
-            id="report-image"
-            type="file"
-            accept="image/*"
-            onChange={handleImageChange}
-          />
-
-          {imagePreview && (
-            <img
-              src={imagePreview}
-              alt="Item preview"
-            />
-          )}
-        </div>
-
-        {/* Error */}
         {error && <p className="form-error">{error}</p>}
 
-        {/* Submit */}
-        <button type="submit">
-          Submit Report
-        </button>
+        {success && <p>{success}</p>}
 
+        <button type="submit" disabled={submitting}>
+          {submitting ? "Submitting..." : "Submit Report"}
+        </button>
       </form>
 
-      {/* Submitted Reports */}
       <div className="reports-section">
+        <h2>All Reports</h2>
 
-        <h2>Submitted Reports</h2>
-
-        {reports.length === 0 ? (
+        {loading ? (
+          <p className="empty-reports">Loading reports...</p>
+        ) : reports.length === 0 ? (
           <p className="empty-reports">
-            No reports submitted yet.
+            No reports available.
           </p>
         ) : (
           reports.map((report) => (
             <div className="report-card" key={report.id}>
-
-              {report.image && (
-                <img
-                  src={report.image}
-                  alt={report.name}
-                />
-              )}
-
               <h3>{report.name}</h3>
 
               <span
@@ -318,10 +239,6 @@ const ReportItem = () => {
               >
                 {report.status}
               </span>
-
-              <p>
-                <strong>Category:</strong> {report.category}
-              </p>
 
               <p>
                 <strong>Location:</strong> {report.location}
@@ -334,20 +251,10 @@ const ReportItem = () => {
               <p>
                 <strong>Description:</strong> {report.description}
               </p>
-
-              <button
-                type="button"
-                onClick={() => handleDelete(report.id)}
-              >
-                Delete Report
-              </button>
-
             </div>
           ))
         )}
-
       </div>
-
     </div>
   );
 };

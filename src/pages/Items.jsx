@@ -1,16 +1,56 @@
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import ItemCard from "../components/ItemCard";
-import demoItems from "../data/items";
+import { apiRequest } from "../services/api";
+
+const normalizeItem = (item) => ({
+  ...item,
+  id: item.id,
+  name: item.title || item.name || "Untitled Item",
+  status:
+    item.type === "LOST"
+      ? "Lost"
+      : item.type === "FOUND"
+        ? "Found"
+        : item.status || item.type,
+  date: item.eventDate || item.date,
+  category: item.category || "Other",
+});
 
 const Items = () => {
+  const [items, setItems] = useState([]);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("All");
   const [category, setCategory] = useState("All");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  const fetchItems = async () => {
+    try {
+      setLoading(true);
+      setError("");
+
+      const data = await apiRequest("/api/items/");
+
+      const itemList = Array.isArray(data)
+        ? data
+        : data?.content || data?.items || [];
+
+      setItems(itemList.map(normalizeItem));
+    } catch (err) {
+      setError(err.message || "Failed to load items.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchItems();
+  }, []);
 
   const categories = [
     "All",
-    ...new Set(demoItems.map((item) => item.category)),
+    ...new Set(items.map((item) => item.category)),
   ];
 
   const normalize = (value) =>
@@ -21,16 +61,18 @@ const Items = () => {
       .split(/\s+/)
       .filter(Boolean);
 
-    return demoItems.filter((item) => {
-      const searchableText = normalize([
-        item.id,
-        item.name,
-        item.category,
-        item.status,
-        item.location,
-        item.description,
-        item.date,
-      ].join(" "));
+    return items.filter((item) => {
+      const searchableText = normalize(
+        [
+          item.id,
+          item.name,
+          item.category,
+          item.status,
+          item.location,
+          item.description,
+          item.date,
+        ].join(" ")
+      );
 
       const matchesSearch = searchTerms.every((term) =>
         searchableText.includes(term)
@@ -44,7 +86,7 @@ const Items = () => {
 
       return matchesSearch && matchesStatus && matchesCategory;
     });
-  }, [search, status, category]);
+  }, [items, search, status, category]);
 
   const clearFilters = () => {
     setSearch("");
@@ -100,6 +142,7 @@ const Items = () => {
                 </option>
               ))}
             </select>
+
           </div>
 
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
@@ -108,7 +151,7 @@ const Items = () => {
               <span className="font-bold text-slate-900">
                 {filteredItems.length}
               </span>{" "}
-              of {demoItems.length} items
+              of {items.length} items
             </p>
 
             <button
@@ -121,7 +164,23 @@ const Items = () => {
           </div>
         </div>
 
-        {filteredItems.length > 0 ? (
+        {loading ? (
+          <div className="py-16 text-center text-slate-500">
+            Loading items...
+          </div>
+        ) : error ? (
+          <div className="rounded-xl bg-red-50 px-4 py-12 text-center text-red-600">
+            <p>{error}</p>
+
+            <button
+              type="button"
+              onClick={fetchItems}
+              className="mt-4 font-semibold underline"
+            >
+              Try Again
+            </button>
+          </div>
+        ) : filteredItems.length > 0 ? (
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {filteredItems.map((item) => (
               <ItemCard key={item.id} item={item} />

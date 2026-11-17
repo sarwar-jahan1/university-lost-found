@@ -1,49 +1,21 @@
 
 import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { apiRequest } from "../services/api";
 
-
-const recentItems = [
-  {
-    id: "1",
-    name: "Black Leather Wallet",
-    category: "Personal Accessories",
-    location: "Central Library",
-    date: "Nov 14, 2026",
-    status: "Lost",
-    image:
-      "https://images.unsplash.com/photo-1627123424574-724758594e93?w=600",
-  },
-  {
-    id: "2",
-    name: "Blue Water Bottle",
-    category: "Accessories",
-    location: "CSE Building",
-    date: "Nov 13, 2026",
-    status: "Found",
-    image:
-      "https://images.unsplash.com/photo-1602143407151-7111542de6e8?w=600",
-  },
-  {
-    id: "3",
-    name: "Black Laptop Backpack",
-    category: "Bags",
-    location: "University Cafeteria",
-    date: "Nov 12, 2026",
-    status: "Lost",
-    image:
-      "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=600",
-  },
-  {
-    id: "4",
-    name: "Silver Keychain",
-    category: "Personal Accessories",
-    location: "Main Building",
-    date: "Nov 11, 2026",
-    status: "Found",
-    image:
-      "https://images.unsplash.com/photo-1582139329536-e7284fece509?w=600",
-  },
-];
+const normalizeItem = (item) => ({
+  ...item,
+  id: item.id,
+  name: item.title || item.name || "Untitled Item",
+  status:
+    item.type === "LOST"
+      ? "Lost"
+      : item.type === "FOUND"
+        ? "Found"
+        : item.status || item.type,
+  date: item.eventDate || item.date,
+  category: item.category || "Other",
+});
 
 const steps = [
   {
@@ -52,12 +24,7 @@ const steps = [
     description:
       "Report a lost or found item by providing its details and location.",
     icon: (
-      <svg
-        className="h-7 w-7"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
+      <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path
           strokeWidth="1.8"
           strokeLinecap="round"
@@ -73,18 +40,9 @@ const steps = [
     description:
       "Browse reported items and find something that belongs to you.",
     icon: (
-      <svg
-        className="h-7 w-7"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
+      <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <circle cx="11" cy="11" r="7" strokeWidth="1.8" />
-        <path
-          d="m16 16 4 4"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-        />
+        <path d="m16 16 4 4" strokeWidth="1.8" strokeLinecap="round" />
       </svg>
     ),
   },
@@ -92,14 +50,9 @@ const steps = [
     number: "03",
     title: "Submit a Claim",
     description:
-      "Submit a claim for your belongings and track its status using your claim code.",
+      "Submit a claim for an item and follow its claim status.",
     icon: (
-      <svg
-        className="h-7 w-7"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
+      <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path
           strokeWidth="1.8"
           strokeLinecap="round"
@@ -112,8 +65,46 @@ const steps = [
 ];
 
 const Home = () => {
+  const [recentItems, setRecentItems] = useState([]);
+  const [loadingItems, setLoadingItems] = useState(true);
+  const [itemsError, setItemsError] = useState("");
+
+  useEffect(() => {
+    const fetchRecentItems = async () => {
+      try {
+        setLoadingItems(true);
+        setItemsError("");
+
+        const data = await apiRequest("/api/items/");
+
+        const itemList = Array.isArray(data)
+          ? data
+          : data?.content || data?.items || [];
+
+        const normalizedItems = itemList
+          .map(normalizeItem)
+          .sort(
+            (a, b) =>
+              new Date(b.date || 0) - new Date(a.date || 0)
+          );
+
+        setRecentItems(normalizedItems.slice(0, 4));
+      } catch (error) {
+        setItemsError(
+          error.message || "Failed to load recent items."
+        );
+      } finally {
+        setLoadingItems(false);
+      }
+    };
+
+    fetchRecentItems();
+  }, []);
+
   return (
     <div className="min-h-screen bg-slate-50">
+
+      {/* Hero Section */}
       <section className="relative overflow-hidden bg-gradient-to-br from-blue-950 via-blue-900 to-indigo-900">
         <div className="absolute -right-20 -top-24 h-80 w-80 rounded-full bg-blue-500/20 blur-3xl" />
         <div className="absolute -bottom-32 -left-20 h-80 w-80 rounded-full bg-indigo-400/20 blur-3xl" />
@@ -144,40 +135,14 @@ const Home = () => {
                 to="/items"
                 className="inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3.5 text-sm font-bold text-blue-900 shadow-lg transition-all duration-200 hover:-translate-y-1 hover:bg-blue-50"
               >
-                Browse Items
-                <svg
-                  className="h-4 w-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M5 12h14m-6-6 6 6-6 6"
-                  />
-                </svg>
+                Browse Items →
               </Link>
 
               <Link
                 to="/report-item"
                 className="inline-flex items-center gap-2 rounded-xl border border-white/40 bg-white/10 px-6 py-3.5 text-sm font-bold text-white transition-all duration-200 hover:-translate-y-1 hover:bg-white/20"
               >
-                <svg
-                  className="h-5 w-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M12 5v14m-7-7h14"
-                  />
-                </svg>
-                Report an Item
+                + Report an Item
               </Link>
             </div>
 
@@ -202,12 +167,7 @@ const Home = () => {
                   </div>
 
                   <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-100 text-blue-700">
-                    <svg
-                      className="h-7 w-7"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
+                    <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path
                         strokeWidth="1.8"
                         strokeLinecap="round"
@@ -227,14 +187,14 @@ const Home = () => {
                 <div className="mt-7 space-y-3">
                   <div className="flex items-center gap-4 rounded-xl border border-slate-100 bg-slate-50 p-3">
                     <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-red-100 text-xl">
-                      <span>🎒</span>
+                      🎒
                     </div>
                     <div className="flex-1">
                       <p className="font-bold text-slate-800">
-                        Lost Backpack
+                        Lost Item
                       </p>
                       <p className="mt-1 text-xs text-slate-500">
-                        University Campus
+                        Report an item
                       </p>
                     </div>
                     <span className="rounded-full bg-red-100 px-2.5 py-1 text-xs font-bold text-red-700">
@@ -244,14 +204,14 @@ const Home = () => {
 
                   <div className="flex items-center gap-4 rounded-xl border border-slate-100 bg-slate-50 p-3">
                     <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-green-100 text-xl">
-                      <span>💧</span>
+                      💧
                     </div>
                     <div className="flex-1">
                       <p className="font-bold text-slate-800">
-                        Water Bottle
+                        Found Item
                       </p>
                       <p className="mt-1 text-xs text-slate-500">
-                        CSE Building
+                        Help its owner
                       </p>
                     </div>
                     <span className="rounded-full bg-green-100 px-2.5 py-1 text-xs font-bold text-green-700">
@@ -301,18 +261,9 @@ const Home = () => {
             className="group flex items-center gap-5 rounded-2xl border border-blue-100 bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-blue-300 hover:shadow-lg sm:p-8"
           >
             <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-700 transition-colors group-hover:bg-blue-700 group-hover:text-white">
-              <svg
-                className="h-8 w-8"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
+              <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <circle cx="11" cy="11" r="7" strokeWidth="1.8" />
-                <path
-                  d="m16 16 4 4"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                />
+                <path d="m16 16 4 4" strokeWidth="1.8" strokeLinecap="round" />
               </svg>
             </div>
 
@@ -324,10 +275,7 @@ const Home = () => {
                 Browse reported lost and found items on your campus.
               </p>
               <span className="mt-3 inline-flex items-center gap-2 text-sm font-bold text-blue-700">
-                Browse Items
-                <span className="transition-transform group-hover:translate-x-1">
-                  →
-                </span>
+                Browse Items →
               </span>
             </div>
           </Link>
@@ -337,12 +285,7 @@ const Home = () => {
             className="group flex items-center gap-5 rounded-2xl border border-green-100 bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-green-300 hover:shadow-lg sm:p-8"
           >
             <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-green-50 text-green-700 transition-colors group-hover:bg-green-600 group-hover:text-white">
-              <svg
-                className="h-8 w-8"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
+              <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeWidth="1.8"
                   strokeLinecap="round"
@@ -360,10 +303,7 @@ const Home = () => {
                 Lost something or found an item? Submit a report.
               </p>
               <span className="mt-3 inline-flex items-center gap-2 text-sm font-bold text-green-700">
-                Report Now
-                <span className="transition-transform group-hover:translate-x-1">
-                  →
-                </span>
+                Report Now →
               </span>
             </div>
           </Link>
@@ -392,99 +332,85 @@ const Home = () => {
               to="/items"
               className="inline-flex items-center gap-2 text-sm font-bold text-blue-700 transition-colors hover:text-blue-900"
             >
-              View All Items
-              <span>→</span>
+              View All Items →
             </Link>
           </div>
 
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {recentItems.map((item) => (
-              <article
-                key={item.id}
-                className="group overflow-hidden rounded-2xl border border-slate-200 bg-white transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
-              >
-                <div className="relative h-48 overflow-hidden bg-slate-100">
-                  <img
-                    src={item.image}
-                    alt={item.name}
-                    loading="lazy"
-                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
+            {loadingItems ? (
+              <p className="col-span-full py-12 text-center text-slate-500">
+                Loading recent items...
+              </p>
+            ) : itemsError ? (
+              <p className="col-span-full py-12 text-center text-red-600">
+                {itemsError}
+              </p>
+            ) : recentItems.length === 0 ? (
+              <p className="col-span-full py-12 text-center text-slate-500">
+                No items have been reported yet.
+              </p>
+            ) : (
+              recentItems.map((item) => (
+                <article
+                  key={item.id}
+                  className="group overflow-hidden rounded-2xl border border-slate-200 bg-white transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+                >
+                  <div className="flex h-16 items-start justify-between bg-slate-50 px-4 py-4">
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-bold ${
+                        item.status === "Lost"
+                          ? "bg-red-100 text-red-700"
+                          : "bg-green-100 text-green-700"
+                      }`}
+                    >
+                      {item.status}
+                    </span>
 
-                  <span
-                    className={`absolute left-3 top-3 rounded-full px-3 py-1 text-xs font-bold ${
-                      item.status === "Lost"
-                        ? "bg-red-100 text-red-700"
-                        : "bg-green-100 text-green-700"
-                    }`}
-                  >
-                    {item.status}
-                  </span>
-                </div>
-
-                <div className="p-4">
-                  <p className="text-xs font-medium text-blue-700">
-                    {item.category}
-                  </p>
-
-                  <h3 className="mt-2 line-clamp-1 text-base font-bold text-slate-900">
-                    {item.name}
-                  </h3>
-
-                  <div className="mt-3 space-y-2 text-xs text-slate-500">
-                    <p className="flex items-center gap-2">
-                      <svg
-                        className="h-4 w-4 shrink-0"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeWidth="1.8"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M12 21s7-5.5 7-12a7 7 0 1 0-14 0c0 6.5 7 12 7 12Z"
-                        />
-                        <circle cx="12" cy="9" r="2" strokeWidth="1.8" />
-                      </svg>
-                      {item.location}
-                    </p>
-
-                    <p className="flex items-center gap-2">
-                      <svg
-                        className="h-4 w-4 shrink-0"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <rect
-                          x="3"
-                          y="5"
-                          width="18"
-                          height="16"
-                          rx="2"
-                          strokeWidth="1.8"
-                        />
-                        <path
-                          d="M16 3v4M8 3v4M3 10h18"
-                          strokeWidth="1.8"
-                          strokeLinecap="round"
-                        />
-                      </svg>
-                      {item.date}
-                    </p>
+                    <span className="text-xs font-medium text-blue-700">
+                      {item.category}
+                    </span>
                   </div>
 
-                  <Link
-                    to={`/items/${item.id}`}
-                    className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl border border-blue-200 py-2.5 text-sm font-bold text-blue-700 transition-colors hover:bg-blue-700 hover:text-white"
-                  >
-                    View Details
-                    <span>→</span>
-                  </Link>
-                </div>
-              </article>
-            ))}
+                  <div className="p-5">
+                    <h3 className="line-clamp-1 text-lg font-bold text-slate-900">
+                      {item.name}
+                    </h3>
+
+                    <p className="mt-3 line-clamp-2 min-h-10 text-sm text-slate-500">
+                      {item.description || "No description available."}
+                    </p>
+
+                    <div className="mt-4 space-y-2 text-sm text-slate-500">
+                      <p className="flex items-center gap-2">
+                        <span>📍</span>
+                        {item.location || "Location unavailable"}
+                      </p>
+
+                      <p className="flex items-center gap-2">
+                        <span>📅</span>
+                        {item.date
+                          ? new Date(`${item.date}T00:00:00`).toLocaleDateString(
+                              "en-US",
+                              {
+                                month: "short",
+                                day: "numeric",
+                                year: "numeric",
+                              }
+                            )
+                          : "Date unavailable"}
+                      </p>
+                    </div>
+
+                    <Link
+                      to={`/items/${item.id}`}
+                      className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl border border-blue-200 py-2.5 text-sm font-bold text-blue-700 transition-colors hover:bg-blue-700 hover:text-white"
+                    >
+                      View Details →
+                    </Link>
+                  </div>
+                </article>
+              ))
+            )}
           </div>
 
           <div className="mt-9 text-center">
@@ -492,8 +418,7 @@ const Home = () => {
               to="/items"
               className="inline-flex items-center gap-2 rounded-xl bg-blue-700 px-7 py-3 text-sm font-bold text-white shadow-md shadow-blue-200 transition-all hover:-translate-y-0.5 hover:bg-blue-800"
             >
-              Explore All Items
-              <span>→</span>
+              Explore All Items →
             </Link>
           </div>
         </div>
@@ -545,4 +470,3 @@ const Home = () => {
 };
 
 export default Home;
-// Isfar hossian

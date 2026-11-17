@@ -1,61 +1,49 @@
 
 import { Routes, Route, Navigate } from "react-router-dom";
 
-import MainLayout from "./layouts/MainLayout";
 import Auth from "./pages/Auth";
-
 import Home from "./pages/Home";
 import Items from "./pages/Items";
-import ReportItem from "./pages/ReportItem";
 import ItemDetails from "./pages/ItemDetails";
+import ReportItem from "./pages/ReportItem";
 import TrackClaim from "./pages/TrackClaim";
 
-import { getCurrentUser } from "./services/authService";
+import MainLayout from "./layouts/MainLayout";
 
-// Protect the main website pages
+import { isAuthenticated } from "./services/authService";
+
 const ProtectedLayout = () => {
-  const user = getCurrentUser();
-
-  if (!user) {
+  if (!isAuthenticated()) {
     return <Navigate to="/" replace />;
   }
 
   return <MainLayout />;
 };
 
-function App() {
-  const user = getCurrentUser();
+const PublicRoute = () => {
+  if (isAuthenticated()) {
+    return <Navigate to="/home" replace />;
+  }
 
+  return <Auth />;
+};
+
+const App = () => {
   return (
     <Routes>
+      <Route path="/" element={<PublicRoute />} />
 
-      {/* Login / Sign Up */}
-      <Route
-        path="/"
-        element={
-          user
-            ? <Navigate to="/home" replace />
-            : <Auth />
-        }
-      />
-
-      {/* Protected Website Pages */}
       <Route element={<ProtectedLayout />}>
         <Route path="/home" element={<Home />} />
         <Route path="/items" element={<Items />} />
-        <Route path="/report-item" element={<ReportItem />} />
         <Route path="/items/:id" element={<ItemDetails />} />
+        <Route path="/report-item" element={<ReportItem />} />
         <Route path="/track-claim" element={<TrackClaim />} />
       </Route>
 
-      {/* Unknown URL */}
-      <Route
-        path="*"
-        element={<Navigate to="/" replace />}
-      />
-
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
-}
+};
 
 export default App;
