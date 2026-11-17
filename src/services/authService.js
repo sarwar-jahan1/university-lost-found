@@ -1,4 +1,3 @@
-
 import {
   apiRequest,
   saveAccessToken,
@@ -38,7 +37,7 @@ export const loginUser = async ({ email, password }) => {
 
   // Try to get the logged-in user's profile
   try {
-    const user = await apiRequest("/api/user/me");
+    const user = await apiRequest("/api/user/me/");
 
     localStorage.setItem(USER_KEY, JSON.stringify(user));
 
@@ -77,4 +76,13 @@ export const isAuthenticated = () => {
 export const logoutUser = () => {
   removeAccessToken();
   localStorage.removeItem(USER_KEY);
+};
+
+// Fetch the authenticated user profile from the backend
+export const fetchCurrentUser = async () => {
+  const user = await apiRequest("/api/user/me/");
+
+  localStorage.setItem(USER_KEY, JSON.stringify(user));
+
+  return user;
 };

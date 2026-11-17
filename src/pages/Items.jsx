@@ -1,40 +1,49 @@
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import ItemCard from "../components/ItemCard";
 import { apiRequest } from "../services/api";
 
-const normalizeItem = (item) => ({
-  ...item,
-  id: item.id,
-  name: item.title || item.name || "Untitled Item",
-  status:
-    item.type === "LOST"
-      ? "Lost"
-      : item.type === "FOUND"
-        ? "Found"
-        : item.status || item.type,
-  date: item.eventDate || item.date,
-  category: item.category || "Other",
-});
+const normalizeItem = (item) => {
+  const itemType = String(item.type || item.status || "").toUpperCase();
+
+  return {
+    ...item,
+    id: item.id,
+    name: item.title || item.name || "Untitled Item",
+    status:
+      itemType === "LOST"
+        ? "Lost"
+        : itemType === "FOUND"
+          ? "Found"
+          : item.status || "Unknown",
+    date: item.eventDate || item.date || "",
+  };
+};
+
+const normalizeItemList = (data) => {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.content)) return data.content;
+  if (Array.isArray(data?.items)) return data.items;
+  return [];
+};
+
+const normalizeText = (value) =>
+  String(value ?? "").toLowerCase().trim();
 
 const Items = () => {
   const [items, setItems] = useState([]);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("All");
-  const [category, setCategory] = useState("All");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const fetchItems = async () => {
+  const fetchItems = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
 
       const data = await apiRequest("/api/items/");
-
-      const itemList = Array.isArray(data)
-        ? data
-        : data?.content || data?.items || [];
+      const itemList = normalizeItemList(data);
 
       setItems(itemList.map(normalizeItem));
     } catch (err) {
@@ -42,31 +51,22 @@ const Items = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchItems();
-  }, []);
-
-  const categories = [
-    "All",
-    ...new Set(items.map((item) => item.category)),
-  ];
-
-  const normalize = (value) =>
-    String(value ?? "").toLowerCase().trim();
+  }, [fetchItems]);
 
   const filteredItems = useMemo(() => {
-    const searchTerms = normalize(search)
+    const searchTerms = normalizeText(search)
       .split(/\s+/)
       .filter(Boolean);
 
     return items.filter((item) => {
-      const searchableText = normalize(
+      const searchableText = normalizeText(
         [
           item.id,
           item.name,
-          item.category,
           item.status,
           item.location,
           item.description,
@@ -81,23 +81,20 @@ const Items = () => {
       const matchesStatus =
         status === "All" || item.status === status;
 
-      const matchesCategory =
-        category === "All" || item.category === category;
-
-      return matchesSearch && matchesStatus && matchesCategory;
+      return matchesSearch && matchesStatus;
     });
-  }, [items, search, status, category]);
+  }, [items, search, status]);
 
   const clearFilters = () => {
     setSearch("");
     setStatus("All");
-    setCategory("All");
   };
 
   return (
     <section className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 lg:px-10">
       <div className="mx-auto max-w-7xl">
 
+        {/* Page Heading */}
         <div className="mb-7 text-center">
           <h1 className="text-3xl font-bold text-slate-900 sm:text-4xl">
             Browse Items
@@ -108,39 +105,28 @@ const Items = () => {
           </p>
         </div>
 
+        {/* Search and Filters */}
         <div className="mb-8 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
 
             <input
               type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by name, ID, category, location..."
+              placeholder="Search by name, ID or location..."
+              aria-label="Search items"
               className="w-full rounded-lg border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             />
 
             <select
               value={status}
               onChange={(e) => setStatus(e.target.value)}
+              aria-label="Filter by item status"
               className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500"
             >
               <option value="All">All Status</option>
               <option value="Lost">Lost Items</option>
               <option value="Found">Found Items</option>
-            </select>
-
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500"
-            >
-              {categories.map((itemCategory) => (
-                <option key={itemCategory} value={itemCategory}>
-                  {itemCategory === "All"
-                    ? "All Categories"
-                    : itemCategory}
-                </option>
-              ))}
             </select>
 
           </div>
@@ -164,11 +150,15 @@ const Items = () => {
           </div>
         </div>
 
-        {loading ? (
+        {/* Loading */}
+        {loading && (
           <div className="py-16 text-center text-slate-500">
             Loading items...
           </div>
-        ) : error ? (
+        )}
+
+        {/* Error */}
+        {!loading && error && (
           <div className="rounded-xl bg-red-50 px-4 py-12 text-center text-red-600">
             <p>{error}</p>
 
@@ -180,13 +170,19 @@ const Items = () => {
               Try Again
             </button>
           </div>
-        ) : filteredItems.length > 0 ? (
+        )}
+
+        {/* Items */}
+        {!loading && !error && filteredItems.length > 0 && (
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {filteredItems.map((item) => (
               <ItemCard key={item.id} item={item} />
             ))}
           </div>
-        ) : (
+        )}
+
+        {/* Empty State */}
+        {!loading && !error && filteredItems.length === 0 && (
           <div className="rounded-xl border border-slate-200 bg-white px-4 py-16 text-center">
             <h2 className="text-xl font-bold text-slate-800">
               No Items Found

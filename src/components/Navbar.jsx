@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 
@@ -22,7 +21,6 @@ const Navbar = () => {
     "Student";
 
   const displayEmail = user?.email || "";
-
   const initial = displayName.charAt(0).toUpperCase();
 
   const navLinks = [
@@ -48,14 +46,10 @@ const Navbar = () => {
 
   return (
     <header className="sticky top-0 z-50 border-b border-slate-200 bg-white shadow-sm">
-
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 md:px-6">
 
         {/* Logo */}
-        <Link
-          to="/home"
-          className="flex items-center gap-3"
-        >
+        <Link to="/home" className="flex items-center gap-3">
           <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-blue-600 text-xl font-extrabold text-white shadow-md">
             LF
           </div>
@@ -86,7 +80,6 @@ const Navbar = () => {
 
         {/* Desktop Profile */}
         <div className="relative hidden items-center gap-3 md:flex">
-
           <button
             type="button"
             onClick={() => setProfileOpen(!profileOpen)}
@@ -111,15 +104,23 @@ const Navbar = () => {
 
           {profileOpen && (
             <div className="absolute right-0 top-full mt-2 w-52 rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
-
               <div className="border-b border-slate-100 px-3 py-2">
                 <p className="truncate text-sm font-semibold text-slate-900">
                   {displayName}
                 </p>
+
                 <p className="truncate text-xs text-slate-500">
                   {displayEmail}
                 </p>
               </div>
+
+              <NavLink
+                to="/profile"
+                onClick={() => setProfileOpen(false)}
+                className="block rounded-lg px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                My Profile
+              </NavLink>
 
               <button
                 type="button"
@@ -128,10 +129,8 @@ const Navbar = () => {
               >
                 Sign Out
               </button>
-
             </div>
           )}
-
         </div>
 
         {/* Mobile Menu Button */}
@@ -143,13 +142,11 @@ const Navbar = () => {
         >
           {menuOpen ? "✕" : "☰"}
         </button>
-
       </div>
 
       {/* Mobile Menu */}
       {menuOpen && (
         <div className="border-t border-slate-200 bg-white px-4 py-4 lg:hidden">
-
           <nav className="flex flex-col gap-2">
             {navLinks.map((link) => (
               <NavLink
@@ -164,7 +161,6 @@ const Navbar = () => {
           </nav>
 
           <div className="mt-4 border-t border-slate-200 pt-4">
-
             <div className="flex items-center gap-3 px-2">
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 font-bold text-blue-700">
                 {initial}
@@ -174,11 +170,20 @@ const Navbar = () => {
                 <p className="truncate text-sm font-bold text-slate-900">
                   {displayName}
                 </p>
+
                 <p className="truncate text-xs text-slate-500">
                   {displayEmail}
                 </p>
               </div>
             </div>
+
+            <NavLink
+              to="/profile"
+              onClick={() => setMenuOpen(false)}
+              className="mt-3 block rounded-lg px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              My Profile
+            </NavLink>
 
             <button
               type="button"
@@ -187,11 +192,9 @@ const Navbar = () => {
             >
               Sign Out
             </button>
-
           </div>
         </div>
       )}
-
     </header>
   );
 };
