@@ -171,7 +171,19 @@ const ManageClaims = () => {
           role="alert"
           className="rounded-xl border border-red-200 bg-red-50 p-5 text-red-700"
         >
-          {error}
+          <p>{error}</p>
+
+          <p className="mt-3 text-sm text-slate-600">
+            New claims on your items are sent to you as notifications.
+            You can approve or reject them from there.
+          </p>
+
+          <Link
+            to="/notifications"
+            className="mt-3 inline-block rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
+          >
+            Open Notifications →
+          </Link>
         </div>
       )}
 

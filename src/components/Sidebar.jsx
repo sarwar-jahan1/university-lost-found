@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 
 import {
@@ -7,6 +7,10 @@ import {
   logoutUser,
 } from "../services/authService";
 import useModal from "../hooks/useModal";
+import {
+  NOTIFICATIONS_CHANGED,
+  getUnreadCount,
+} from "../services/notificationService";
 
 const icon = {
   fill: "none",
@@ -62,6 +66,16 @@ const navLinks = [
     ),
   },
   {
+    name: "Notifications",
+    path: "/notifications",
+    icon: (
+      <svg {...icon}>
+        <path d="M6 9a6 6 0 1 1 12 0c0 6 2 7 2 7H4s2-1 2-7Z" />
+        <path d="M10 19a2 2 0 0 0 4 0" />
+      </svg>
+    ),
+  },
+  {
     name: "My Profile",
     path: "/profile",
     icon: (
@@ -73,7 +87,7 @@ const navLinks = [
   },
 ];
 
-const SidebarContent = ({ user, onLogout }) => {
+const SidebarContent = ({ user, onLogout, unread = 0 }) => {
   const displayName =
     user?.name ||
     user?.fullName ||
@@ -119,6 +133,15 @@ const SidebarContent = ({ user, onLogout }) => {
           <NavLink key={link.path} to={link.path} className={linkClass}>
             {link.icon}
             {link.name}
+
+            {link.path === "/notifications" && unread > 0 && (
+              <span
+                className="ml-auto rounded-full bg-red-500 px-2 py-0.5 text-xs font-bold text-white"
+                aria-label={`${unread} unread notifications`}
+              >
+                {unread > 99 ? "99+" : unread}
+              </span>
+            )}
           </NavLink>
         ))}
       </nav>
@@ -166,7 +189,7 @@ const SidebarContent = ({ user, onLogout }) => {
   );
 };
 
-const Drawer = ({ user, onLogout, onClose }) => {
+const Drawer = ({ user, onLogout, onClose, unread }) => {
   useModal(onClose);
 
   return (
@@ -192,7 +215,7 @@ const Drawer = ({ user, onLogout, onClose }) => {
           ✕
         </button>
 
-        <SidebarContent user={user} onLogout={onLogout} />
+        <SidebarContent user={user} onLogout={onLogout} unread={unread} />
       </aside>
     </div>
   );
@@ -207,6 +230,36 @@ const Sidebar = () => {
   const [drawerPath, setDrawerPath] = useState(null);
   const drawerOpen = drawerPath === location.pathname;
 
+  const [unread, setUnread] = useState(0);
+
+  // Unread badge: refresh on navigation, every minute, and whenever a
+  // notification is read.
+  useEffect(() => {
+    if (!user) return undefined;
+
+    let active = true;
+
+    const refresh = async () => {
+      try {
+        const count = await getUnreadCount();
+        if (active) setUnread(count);
+      } catch {
+        // keep the last known count
+      }
+    };
+
+    refresh();
+
+    const timer = window.setInterval(refresh, 60000);
+    window.addEventListener(NOTIFICATIONS_CHANGED, refresh);
+
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+      window.removeEventListener(NOTIFICATIONS_CHANGED, refresh);
+    };
+  }, [user, location.pathname]);
+
   const handleLogout = () => {
     logoutUser();
     setUser(null);
@@ -219,7 +272,7 @@ const Sidebar = () => {
     <>
       {/* Desktop sidebar */}
       <aside className="fixed inset-y-0 left-0 z-50 hidden w-64 bg-slate-900 lg:block">
-        <SidebarContent user={user} onLogout={handleLogout} />
+        <SidebarContent user={user} onLogout={handleLogout} unread={unread} />
       </aside>
 
       {/* Mobile top bar */}
@@ -234,6 +287,24 @@ const Sidebar = () => {
           </span>
         </Link>
 
+        <div className="flex items-center gap-2">
+        <Link
+          to="/notifications"
+          aria-label={`Notifications${unread ? `, ${unread} unread` : ""}`}
+          className="relative rounded-lg border border-slate-200 px-3 py-2 text-slate-700 transition hover:bg-slate-50"
+        >
+          <svg {...icon} className="h-5 w-5">
+            <path d="M6 9a6 6 0 1 1 12 0c0 6 2 7 2 7H4s2-1 2-7Z" />
+            <path d="M10 19a2 2 0 0 0 4 0" />
+          </svg>
+
+          {unread > 0 && (
+            <span className="absolute -right-1.5 -top-1.5 rounded-full bg-red-500 px-1.5 text-[10px] font-bold leading-4 text-white">
+              {unread > 99 ? "99+" : unread}
+            </span>
+          )}
+        </Link>
+
         <button
           type="button"
           onClick={() => setDrawerPath(location.pathname)}
@@ -243,12 +314,14 @@ const Sidebar = () => {
         >
           ☰
         </button>
+        </div>
       </header>
 
       {drawerOpen && (
         <Drawer
           user={user}
           onLogout={handleLogout}
+          unread={unread}
           onClose={() => setDrawerPath(null)}
         />
       )}

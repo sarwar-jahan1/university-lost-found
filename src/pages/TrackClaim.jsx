@@ -6,6 +6,7 @@ import StatusBadge from "../components/ui/StatusBadge";
 import { ListRowSkeleton } from "../components/ui/Skeleton";
 import { ArrowIcon } from "../components/ui/Icons";
 import useDocumentTitle from "../hooks/useDocumentTitle";
+import ItemImage from "../components/ui/ItemImage";
 import { getClaimItemId, getClaimItemTitle } from "../utils/claims";
 
 const normalizeClaims = (data) => {
@@ -34,6 +35,8 @@ const TrackClaim = () => {
   useDocumentTitle("Track Claims");
 
   const [claims, setClaims] = useState([]);
+  // Claims only carry an item id, so look the items up for title + photo
+  const [itemsById, setItemsById] = useState({});
   const [filter, setFilter] = useState("ALL");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -51,10 +54,28 @@ const TrackClaim = () => {
 
     const fetchClaims = async () => {
       try {
-        const data = await apiRequest("/api/claims/");
-        if (active) setClaims(normalizeClaims(data));
-      } catch (err) {
-        if (active) setError(err.message || "Unable to load your claims.");
+        const [claimsResult, itemsResult] = await Promise.allSettled([
+          apiRequest("/api/claims/"),
+          apiRequest("/api/items/"),
+        ]);
+
+        if (!active) return;
+
+        if (claimsResult.status === "fulfilled") {
+          setClaims(normalizeClaims(claimsResult.value));
+        } else {
+          setError(
+            claimsResult.reason?.message || "Unable to load your claims."
+          );
+        }
+
+        if (itemsResult.status === "fulfilled") {
+          const map = {};
+          normalizeClaims(itemsResult.value).forEach((item) => {
+            map[String(item.id)] = item;
+          });
+          setItemsById(map);
+        }
       } finally {
         if (active) setLoading(false);
       }
@@ -203,7 +224,9 @@ const TrackClaim = () => {
               {visibleClaims.map((claim) => {
                 const status = getStatus(claim);
                 const itemId = getClaimItemId(claim);
-                const itemTitle = getClaimItemTitle(claim);
+                const linkedItem = itemsById[String(itemId)];
+                const itemTitle =
+                  getClaimItemTitle(claim) || linkedItem?.title || "";
 
                 return (
                   <article
@@ -220,16 +243,33 @@ const TrackClaim = () => {
                       <StatusBadge status={status} />
                     </div>
 
-                    {itemId !== undefined && itemId !== null && (
-                      <p className="mb-2 text-sm text-slate-600">
-                        Item:{" "}
-                        <Link
-                          to={`/items/${itemId}`}
-                          className="font-semibold text-blue-600 hover:underline"
-                        >
-                          {itemTitle || `#${itemId}`}
-                        </Link>
+                    {claim.createdAt && (
+                      <p className="-mt-1 mb-3 text-xs text-slate-400">
+                        Submitted{" "}
+                        {new Date(claim.createdAt).toLocaleDateString(
+                          "en-US",
+                          { month: "short", day: "numeric", year: "numeric" }
+                        )}
                       </p>
+                    )}
+
+                    {itemId !== undefined && itemId !== null && (
+                      <Link
+                        to={`/items/${itemId}`}
+                        className="group mb-3 flex items-center gap-3 rounded-lg border border-slate-200 p-2 transition hover:border-blue-300 hover:bg-blue-50/40"
+                      >
+                        <ItemImage
+                          item={linkedItem || {}}
+                          className="h-14 w-14 shrink-0 rounded-md"
+                        />
+
+                        <div className="min-w-0">
+                          <p className="text-xs text-slate-400">Item</p>
+                          <p className="truncate text-sm font-semibold text-blue-700 group-hover:underline">
+                            {itemTitle || `#${itemId}`}
+                          </p>
+                        </div>
+                      </Link>
                     )}
 
                     {claim.description && (

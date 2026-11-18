@@ -7,6 +7,20 @@ import {
   USER_KEY,
 } from "./api";
 
+// The API documents the profile route WITHOUT a trailing slash
+// (`/api/user/me`); fall back to the slash form for other builds.
+const requestProfile = async () => {
+  try {
+    return await apiRequest("/api/user/me");
+  } catch (err) {
+    if (/session expired|cannot connect/i.test(err.message || "")) {
+      throw err;
+    }
+
+    return apiRequest("/api/user/me/");
+  }
+};
+
 // Register a new account
 export const signupUser = async ({ name, email, password }) => {
   return apiRequest("/api/auth/signup/", {
@@ -36,7 +50,7 @@ export const loginUser = async ({ email, password }) => {
   saveAccessToken(data.accessToken);
 
   try {
-    const user = await apiRequest("/api/user/me/");
+    const user = await requestProfile();
 
     localStorage.setItem(USER_KEY, JSON.stringify(user));
 
@@ -78,7 +92,7 @@ export const logoutUser = () => {
 
 // Fetch current user profile
 export const fetchCurrentUser = async () => {
-  const user = await apiRequest("/api/user/me/");
+  const user = await requestProfile();
 
   localStorage.setItem(USER_KEY, JSON.stringify(user));
 

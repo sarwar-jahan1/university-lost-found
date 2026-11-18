@@ -13,6 +13,7 @@ import TrackClaim from "./pages/TrackClaim";
 import Profile from "./pages/Profile";
 import ManageClaims from "./pages/ManageClaims";
 import NotFound from "./pages/NotFound";
+import Notifications from "./pages/Notifications";
 
 function App() {
   return (
@@ -42,6 +43,8 @@ function App() {
             path="/manage-claims/:itemId"
             element={<ManageClaims />}
           />
+
+          <Route path="/notifications" element={<Notifications />} />
 
           <Route path="/profile" element={<Profile />} />
 

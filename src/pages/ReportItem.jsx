@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import { apiRequest } from "../services/api";
 import { useToast } from "../components/ui/toastContext";
 import useDocumentTitle from "../hooks/useDocumentTitle";
+import ItemImage from "../components/ui/ItemImage";
+import { validateImageFile } from "../utils/items";
 import "../Styles/ReportItem.css";
 
 const normalizeItem = (item) => ({
@@ -17,6 +19,43 @@ const ReportItem = () => {
 
   const { notify } = useToast();
   const nameInputRef = useRef(null);
+  const fileInputRef = useRef(null);
+
+  // Optional photo (sent as the multipart `image` part)
+  const [image, setImage] = useState(null);
+  const [preview, setPreview] = useState("");
+  const [dragging, setDragging] = useState(false);
+
+  // Free the preview's temporary URL when it changes or the page closes
+  useEffect(() => {
+    return () => {
+      if (preview) URL.revokeObjectURL(preview);
+    };
+  }, [preview]);
+
+  const selectImage = (file) => {
+    if (!file) return;
+
+    const problem = validateImageFile(file);
+
+    if (problem) {
+      setError(problem);
+      notify(problem, "error");
+      return;
+    }
+
+    setError("");
+    setSuccess("");
+    setImage(file);
+    setPreview(URL.createObjectURL(file));
+  };
+
+  const removeImage = () => {
+    setImage(null);
+    setPreview("");
+
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
 
   const [formData, setFormData] = useState({
     name: "",
@@ -76,6 +115,7 @@ const ReportItem = () => {
       date: "",
       description: "",
     });
+    removeImage();
   };
 
   const handleSubmit = async (e) => {
@@ -98,17 +138,20 @@ const ReportItem = () => {
     try {
       setSubmitting(true);
 
-      const payload = {
-        title: formData.name.trim(),
-        description: formData.description.trim(),
-        type: formData.status.toUpperCase(),
-        location: formData.location.trim(),
-        eventDate: formData.date,
-      };
+      // The API expects multipart/form-data: five text parts plus an
+      // optional `image` file part.
+      const payload = new FormData();
+      payload.append("title", formData.name.trim());
+      payload.append("description", formData.description.trim());
+      payload.append("type", formData.status.toUpperCase());
+      payload.append("location", formData.location.trim());
+      payload.append("eventDate", formData.date);
+
+      if (image) payload.append("image", image);
 
       const createdItem = await apiRequest("/api/items/", {
         method: "POST",
-        body: JSON.stringify(payload),
+        body: payload,
       });
 
       if (createdItem && createdItem.id) {
@@ -371,6 +414,103 @@ const ReportItem = () => {
               </div>
             </div>
 
+            {/* Photo (optional) */}
+            <div className="report-field">
+              <label htmlFor="item-photo">
+                Photo <small>(optional)</small>
+              </label>
+
+              <input
+                id="item-photo"
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="sr-only"
+                onChange={(e) => selectImage(e.target.files?.[0])}
+              />
+
+              {preview ? (
+                <div className="relative overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+                  <img
+                    src={preview}
+                    alt="Selected item preview"
+                    className="mx-auto max-h-64 w-full object-contain"
+                  />
+
+                  <div className="flex items-center justify-between gap-3 border-t border-slate-200 bg-white px-4 py-2.5 text-sm">
+                    <span className="min-w-0 truncate text-slate-600">
+                      {image?.name}{" "}
+                      <span className="text-slate-400">
+                        ({(image.size / 1024).toFixed(0)} KB)
+                      </span>
+                    </span>
+
+                    <span className="flex shrink-0 gap-3 font-semibold">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="text-blue-600 hover:underline"
+                      >
+                        Change
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={removeImage}
+                        className="text-red-600 hover:underline"
+                      >
+                        Remove
+                      </button>
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <label
+                  htmlFor="item-photo"
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setDragging(true);
+                  }}
+                  onDragLeave={() => setDragging(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setDragging(false);
+                    selectImage(e.dataTransfer.files?.[0]);
+                  }}
+                  className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-8 text-center transition ${
+                    dragging
+                      ? "border-blue-500 bg-blue-50"
+                      : "border-slate-300 bg-slate-50 hover:border-blue-400 hover:bg-blue-50/50"
+                  }`}
+                >
+                  <svg
+                    className="h-9 w-9 text-slate-400"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.6"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path d="M12 16V4m0 0L7 9m5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" />
+                  </svg>
+
+                  <span className="text-sm font-semibold text-slate-700">
+                    Click to upload or drag a photo here
+                  </span>
+
+                  <span className="text-xs text-slate-400">
+                    JPG, PNG or WEBP · up to 5 MB
+                  </span>
+                </label>
+              )}
+
+              <small>
+                A clear photo helps the owner recognise the item.
+              </small>
+            </div>
+
             {/* Error Message */}
             {error && (
               <div className="report-alert report-alert-error" role="alert">
@@ -441,7 +581,12 @@ const ReportItem = () => {
           ) : (
             <div className="reports-grid">
               {reports.map((report) => (
-                <article className="report-list-card" key={report.id}>
+                <article className="report-list-card group" key={report.id}>
+                  <ItemImage
+                    item={report}
+                    className="mb-3 aspect-[16/9] w-full rounded-lg"
+                  />
+
                   <div className="report-list-top">
                     <span
                       className={`report-status-badge ${

@@ -1,6 +1,7 @@
 
 import { Link } from "react-router-dom";
 import StatusBadge from "./ui/StatusBadge";
+import ItemImage from "./ui/ItemImage";
 import { ArrowIcon, CalendarIcon, PinIcon } from "./ui/Icons";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -33,9 +34,15 @@ const ItemCard = ({ item }) => {
 
   return (
     <article className="animate-fade-up group relative flex h-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-blue-200 hover:shadow-lg">
-      <div
-        className={`h-1 w-full ${isLost ? "bg-red-400" : "bg-emerald-400"}`}
-      />
+      <div className="relative">
+        <ItemImage item={item} className="aspect-[4/3] w-full" />
+
+        <div
+          className={`absolute inset-x-0 bottom-0 h-1 ${
+            isLost ? "bg-red-400" : "bg-emerald-400"
+          }`}
+        />
+      </div>
 
       <div className="flex flex-1 flex-col p-5">
         <div className="mb-3 flex items-center justify-between gap-2">

@@ -11,6 +11,11 @@ import {
   PinIcon,
 } from "../components/ui/Icons";
 import useDocumentTitle from "../hooks/useDocumentTitle";
+import ItemImage from "../components/ui/ItemImage";
+import {
+  getNotifications,
+  isNotificationRead,
+} from "../services/notificationService";
 import { getClaimItemId, getClaimItemTitle } from "../utils/claims";
 
 const toList = (data) => {
@@ -98,16 +103,20 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [itemsError, setItemsError] = useState("");
   const [claimsError, setClaimsError] = useState("");
+  const [notifications, setNotifications] = useState([]);
+  const [notificationsError, setNotificationsError] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let active = true;
 
     const load = async () => {
-      const [itemsResult, claimsResult] = await Promise.allSettled([
-        apiRequest("/api/items/"),
-        apiRequest("/api/claims/"),
-      ]);
+      const [itemsResult, claimsResult, notificationsResult] =
+        await Promise.allSettled([
+          apiRequest("/api/items/"),
+          apiRequest("/api/claims/"),
+          getNotifications(),
+        ]);
 
       if (!active) return;
 
@@ -131,6 +140,15 @@ const Dashboard = () => {
         );
       }
 
+      if (notificationsResult.status === "fulfilled") {
+        setNotifications(notificationsResult.value);
+      } else {
+        setNotificationsError(
+          notificationsResult.reason?.message ||
+            "Failed to load notifications."
+        );
+      }
+
       setLoading(false);
     };
 
@@ -145,6 +163,7 @@ const Dashboard = () => {
     setLoading(true);
     setItemsError("");
     setClaimsError("");
+    setNotificationsError("");
     setReloadKey((key) => key + 1);
   };
 
@@ -349,12 +368,22 @@ const Dashboard = () => {
                     to={`/items/${item.id}`}
                     className="group -mx-2 flex items-center gap-4 rounded-lg px-2 py-3 transition hover:bg-slate-50"
                   >
-                    <StatusBadge status={item.status} />
+                    <ItemImage
+                      item={item}
+                      className="h-14 w-14 shrink-0 rounded-lg"
+                    />
 
                     <div className="min-w-0 flex-1">
-                      <p className="truncate font-semibold text-slate-900 group-hover:text-blue-700">
-                        {item.name}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="truncate font-semibold text-slate-900 group-hover:text-blue-700">
+                          {item.name}
+                        </p>
+
+                        <StatusBadge
+                          status={item.status}
+                          className="shrink-0 !px-2 !py-0.5"
+                        />
+                      </div>
 
                       <p className="mt-0.5 flex flex-wrap items-center gap-x-3 text-xs text-slate-500">
                         <span className="inline-flex items-center gap-1">
@@ -378,6 +407,77 @@ const Dashboard = () => {
         </section>
 
         <div className="space-y-6">
+
+          {/* Notifications */}
+          <section
+            aria-label="Latest notifications"
+            className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="flex items-center gap-2 text-lg font-extrabold text-slate-900">
+                Notifications
+                {notifications.some((n) => !isNotificationRead(n)) && (
+                  <span className="rounded-full bg-red-500 px-2 py-0.5 text-xs font-bold text-white">
+                    {notifications.filter((n) => !isNotificationRead(n)).length}
+                  </span>
+                )}
+              </h2>
+
+              <Link
+                to="/notifications"
+                className="text-sm font-bold text-blue-600 hover:text-blue-800"
+              >
+                View all →
+              </Link>
+            </div>
+
+            {loading ? (
+              <div className="space-y-3">
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-12 w-full" />
+              </div>
+            ) : notificationsError ? (
+              <p role="alert" className="py-4 text-center text-sm text-red-600">
+                {notificationsError}
+              </p>
+            ) : notifications.length === 0 ? (
+              <p className="py-6 text-center text-sm text-slate-500">
+                No notifications yet.
+              </p>
+            ) : (
+              <ul className="space-y-2">
+                {notifications.slice(0, 3).map((notification) => {
+                  const unread = !isNotificationRead(notification);
+
+                  return (
+                    <li key={notification.id}>
+                      <Link
+                        to="/notifications"
+                        className={`flex gap-3 rounded-lg px-3 py-2.5 transition hover:bg-slate-100 ${
+                          unread ? "bg-blue-50" : "bg-slate-50"
+                        }`}
+                      >
+                        <span
+                          className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${
+                            unread ? "bg-blue-600" : "bg-slate-300"
+                          }`}
+                        />
+
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-slate-800">
+                            {notification.title}
+                          </p>
+                          <p className="truncate text-xs text-slate-500">
+                            {notification.message}
+                          </p>
+                        </div>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
 
           {/* My claims */}
           <section

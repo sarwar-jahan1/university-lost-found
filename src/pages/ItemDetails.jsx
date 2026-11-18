@@ -12,6 +12,9 @@ import {
   ShareIcon,
 } from "../components/ui/Icons";
 import useDocumentTitle from "../hooks/useDocumentTitle";
+import useModal from "../hooks/useModal";
+import ItemImage from "../components/ui/ItemImage";
+import { getImageUrl } from "../utils/items";
 import { getCurrentUser } from "../services/authService";
 
 const OWNER_KEYS = [
@@ -72,12 +75,44 @@ const checkOwnership = (item, user) => {
   return comparable ? false : null;
 };
 
+// Full-size photo viewer
+const Lightbox = ({ src, alt, onClose }) => {
+  useModal(onClose);
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Item photo"
+      className="animate-fade fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/85 p-4"
+      onClick={onClose}
+    >
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Close photo"
+        className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20"
+      >
+        ✕
+      </button>
+
+      <img
+        src={src}
+        alt={alt}
+        onClick={(event) => event.stopPropagation()}
+        className="animate-pop max-h-[90vh] max-w-full rounded-lg object-contain shadow-2xl"
+      />
+    </div>
+  );
+};
+
 const ItemDetails = () => {
   const { id } = useParams();
   const { notify } = useToast();
 
   const [item, setItem] = useState(null);
   const [showClaimForm, setShowClaimForm] = useState(false);
+  const [zoomed, setZoomed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -240,6 +275,20 @@ const ItemDetails = () => {
             }`}
           />
 
+          {getImageUrl(item) && (
+            <button
+              type="button"
+              onClick={() => setZoomed(true)}
+              aria-label="View photo full size"
+              className="group block w-full cursor-zoom-in"
+            >
+              <ItemImage
+                item={item}
+                className="aspect-[16/9] max-h-96 w-full"
+              />
+            </button>
+          )}
+
           <div className="p-6 sm:p-8">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <StatusBadge status={status} className="!px-4 !py-1.5 !text-sm" />
@@ -339,16 +388,24 @@ const ItemDetails = () => {
                 <p className="mt-4 text-center text-sm text-slate-500">
                   Did you report this item?{" "}
                   <Link
-                    to={`/manage-claims/${item.id}`}
+                    to="/notifications"
                     className="font-semibold text-blue-600 hover:underline"
                   >
-                    Manage its claims
+                    Review its claims in Notifications
                   </Link>
                 </p>
               </>
             )}
           </div>
         </div>
+
+        {zoomed && (
+          <Lightbox
+            src={getImageUrl(item)}
+            alt={item.title || item.name || "Item photo"}
+            onClose={() => setZoomed(false)}
+          />
+        )}
 
         {showClaimForm && (
           <ClaimForm

@@ -7,6 +7,7 @@ const footerLinks = [
   { name: "Browse Items", path: "/items" },
   { name: "Report Item", path: "/report-item" },
   { name: "Track Claim", path: "/track-claim" },
+  { name: "Notifications", path: "/notifications" },
   { name: "My Profile", path: "/profile" },
 ];
 
