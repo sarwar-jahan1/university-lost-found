@@ -5,6 +5,7 @@ import { useToast } from "../components/ui/toastContext";
 import useDocumentTitle from "../hooks/useDocumentTitle";
 import ItemImage from "../components/ui/ItemImage";
 import { validateImageFile } from "../utils/items";
+import { addMyItemId } from "../utils/myItems";
 import "../Styles/ReportItem.css";
 
 const normalizeItem = (item) => ({
@@ -19,6 +20,11 @@ const ReportItem = () => {
 
   const { notify } = useToast();
   const nameInputRef = useRef(null);
+
+  // Guards against double submits (same report sent twice in a row)
+  const submittingRef = useRef(false);
+  const lastSubmitRef = useRef({ signature: "", time: 0 });
+  const [duplicatePrompt, setDuplicatePrompt] = useState(false);
   const fileInputRef = useRef(null);
 
   // Optional photo (sent as the multipart `image` part)
@@ -118,11 +124,18 @@ const ReportItem = () => {
     removeImage();
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
+    submitReport(false);
+  };
+
+  const submitReport = async (force) => {
+    // Ignore clicks while a request is already in flight
+    if (submittingRef.current) return;
 
     setError("");
     setSuccess("");
+    setDuplicatePrompt(false);
 
     if (
       !formData.name.trim() ||
@@ -135,7 +148,28 @@ const ReportItem = () => {
       return;
     }
 
+    // The same report sent again within 2 minutes is probably a mistake
+    const signature = [
+      formData.name,
+      formData.location,
+      formData.date,
+      formData.status,
+    ]
+      .join("|")
+      .trim()
+      .toLowerCase();
+
+    if (
+      !force &&
+      lastSubmitRef.current.signature === signature &&
+      Date.now() - lastSubmitRef.current.time < 120000
+    ) {
+      setDuplicatePrompt(true);
+      return;
+    }
+
     try {
+      submittingRef.current = true;
       setSubmitting(true);
 
       // The API expects multipart/form-data: five text parts plus an
@@ -154,7 +188,10 @@ const ReportItem = () => {
         body: payload,
       });
 
+      lastSubmitRef.current = { signature, time: Date.now() };
+
       if (createdItem && createdItem.id) {
+        addMyItemId(createdItem.id);
         setReports((previous) => [
           normalizeItem(createdItem),
           ...previous,
@@ -171,6 +208,7 @@ const ReportItem = () => {
       setError(err.message || "Unable to submit report.");
       notify(err.message || "Unable to submit report.", "error");
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   };
@@ -510,6 +548,42 @@ const ReportItem = () => {
                 A clear photo helps the owner recognise the item.
               </small>
             </div>
+
+            {/* Duplicate report warning */}
+            {duplicatePrompt && (
+              <div
+                role="alertdialog"
+                aria-label="Possible duplicate report"
+                className="rounded-xl border border-amber-300 bg-amber-50 p-4"
+              >
+                <p className="text-sm font-semibold text-amber-900">
+                  You just submitted an identical report. Submit it again?
+                </p>
+
+                <p className="mt-1 text-xs text-amber-800">
+                  If your last report was saved, sending it again creates
+                  a duplicate. Check All Reports below first.
+                </p>
+
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => submitReport(true)}
+                    className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-700"
+                  >
+                    Yes, submit again
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setDuplicatePrompt(false)}
+                    className="rounded-lg border border-amber-300 bg-white px-4 py-2 text-sm font-semibold text-amber-900 transition hover:bg-amber-100"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Error Message */}
             {error && (

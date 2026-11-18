@@ -57,6 +57,15 @@ const navLinks = [
     ),
   },
   {
+    name: "My Reports",
+    path: "/my-reports",
+    icon: (
+      <svg {...icon}>
+        <path d="M8 3h8l4 4v14H4V3h4Zm0 8h8M8 15h8M8 7h2" />
+      </svg>
+    ),
+  },
+  {
     name: "Track Claim",
     path: "/track-claim",
     icon: (

@@ -26,3 +26,31 @@ export const getClaimant = (claim) => {
       (nestedText.includes("@") ? nestedText : ""),
   };
 };
+
+// The API leaves a rejected claim as PENDING, but it does send a
+// CLAIM_REJECTED / CLAIM_APPROVED notification carrying the claim id.
+// Use those notifications to show the real decision on the claim.
+export const applyNotificationDecisions = (claims, notifications = []) => {
+  const decisions = {};
+
+  notifications.forEach((notification) => {
+    if (notification?.claimId === undefined || notification?.claimId === null) {
+      return;
+    }
+
+    if (notification.type === "CLAIM_REJECTED") {
+      decisions[String(notification.claimId)] = "REJECTED";
+    } else if (notification.type === "CLAIM_APPROVED") {
+      decisions[String(notification.claimId)] = "APPROVED";
+    }
+  });
+
+  return claims.map((claim) => {
+    const current = String(claim.status || "PENDING").toUpperCase();
+    const decided = decisions[String(claim.id)];
+
+    return current === "PENDING" && decided
+      ? { ...claim, status: decided }
+      : claim;
+  });
+};

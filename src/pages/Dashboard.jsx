@@ -12,6 +12,7 @@ import {
 } from "../components/ui/Icons";
 import useDocumentTitle from "../hooks/useDocumentTitle";
 import ItemImage from "../components/ui/ItemImage";
+import { applyNotificationDecisions } from "../utils/claims";
 import {
   getNotifications,
   isNotificationRead,
@@ -133,7 +134,14 @@ const Dashboard = () => {
       }
 
       if (claimsResult.status === "fulfilled") {
-        setClaims(toList(claimsResult.value));
+        setClaims(
+          applyNotificationDecisions(
+            toList(claimsResult.value),
+            notificationsResult.status === "fulfilled"
+              ? notificationsResult.value
+              : []
+          )
+        );
       } else {
         setClaimsError(
           claimsResult.reason?.message || "Failed to load your claims."

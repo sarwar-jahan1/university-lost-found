@@ -7,7 +7,12 @@ import { ListRowSkeleton } from "../components/ui/Skeleton";
 import { ArrowIcon } from "../components/ui/Icons";
 import useDocumentTitle from "../hooks/useDocumentTitle";
 import ItemImage from "../components/ui/ItemImage";
-import { getClaimItemId, getClaimItemTitle } from "../utils/claims";
+import {
+  applyNotificationDecisions,
+  getClaimItemId,
+  getClaimItemTitle,
+} from "../utils/claims";
+import { getNotifications } from "../services/notificationService";
 
 const normalizeClaims = (data) => {
   if (Array.isArray(data)) return data;
@@ -54,15 +59,24 @@ const TrackClaim = () => {
 
     const fetchClaims = async () => {
       try {
-        const [claimsResult, itemsResult] = await Promise.allSettled([
-          apiRequest("/api/claims/"),
-          apiRequest("/api/items/"),
-        ]);
+        const [claimsResult, itemsResult, notificationsResult] =
+          await Promise.allSettled([
+            apiRequest("/api/claims/"),
+            apiRequest("/api/items/"),
+            getNotifications(),
+          ]);
 
         if (!active) return;
 
         if (claimsResult.status === "fulfilled") {
-          setClaims(normalizeClaims(claimsResult.value));
+          setClaims(
+            applyNotificationDecisions(
+              normalizeClaims(claimsResult.value),
+              notificationsResult.status === "fulfilled"
+                ? notificationsResult.value
+                : []
+            )
+          );
         } else {
           setError(
             claimsResult.reason?.message || "Unable to load your claims."

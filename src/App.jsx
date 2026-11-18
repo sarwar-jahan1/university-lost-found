@@ -14,6 +14,8 @@ import Profile from "./pages/Profile";
 import ManageClaims from "./pages/ManageClaims";
 import NotFound from "./pages/NotFound";
 import Notifications from "./pages/Notifications";
+import EditItem from "./pages/EditItem";
+import MyReports from "./pages/MyReports";
 
 function App() {
   return (
@@ -33,8 +35,10 @@ function App() {
           <Route path="/items" element={<Items />} />
           <Route path="/browse-items" element={<Items />} />
           <Route path="/items/:id" element={<ItemDetails />} />
+          <Route path="/items/:id/edit" element={<EditItem />} />
 
           <Route path="/report-item" element={<ReportItem />} />
+          <Route path="/my-reports" element={<MyReports />} />
 
           <Route path="/track-claims" element={<TrackClaim />} />
           <Route path="/track-claim" element={<TrackClaim />} />

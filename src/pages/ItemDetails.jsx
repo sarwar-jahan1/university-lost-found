@@ -1,4 +1,4 @@
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { apiRequest } from "../services/api";
 import ClaimForm from "../components/ClaimForm";
@@ -16,6 +16,9 @@ import useModal from "../hooks/useModal";
 import ItemImage from "../components/ui/ItemImage";
 import { getImageUrl } from "../utils/items";
 import { getCurrentUser } from "../services/authService";
+import { deleteItem } from "../services/itemService";
+import { isMyItem, removeMyItemId } from "../utils/myItems";
+import ConfirmDialog from "../components/ui/ConfirmDialog";
 
 const OWNER_KEYS = [
   "userId",
@@ -109,10 +112,13 @@ const Lightbox = ({ src, alt, onClose }) => {
 const ItemDetails = () => {
   const { id } = useParams();
   const { notify } = useToast();
+  const navigate = useNavigate();
 
   const [item, setItem] = useState(null);
   const [showClaimForm, setShowClaimForm] = useState(false);
   const [zoomed, setZoomed] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -173,6 +179,23 @@ const ItemDetails = () => {
       if (err?.name !== "AbortError") {
         notify("Could not copy the link.", "error");
       }
+    }
+  };
+
+  const handleDelete = async () => {
+    try {
+      setDeleting(true);
+      await deleteItem(item.id);
+
+      removeMyItemId(item.id);
+      notify("Item deleted.", "success");
+      navigate("/items", { replace: true });
+    } catch (err) {
+      // 403 = only the reporter can delete this item
+      notify(err.message || "Unable to delete this item.", "error");
+      setShowDelete(false);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -249,7 +272,35 @@ const ItemDetails = () => {
     : "Date unavailable";
 
   // true = reporter, false = someone else, null = API sends no owner info
-  const isOwner = checkOwnership(item, getCurrentUser());
+  const detectedOwner = checkOwnership(item, getCurrentUser());
+  // Items reported from this device are always treated as the user's own
+  const isOwner = detectedOwner === true || isMyItem(item.id) ? true : detectedOwner;
+
+  const reporterActions = (
+    <div className="mt-4 flex flex-wrap gap-3">
+      <Link
+        to="/notifications"
+        className="rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-700"
+      >
+        Review claims
+      </Link>
+
+      <Link
+        to={`/items/${item.id}/edit`}
+        className="rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-blue-300 hover:text-blue-700"
+      >
+        Edit
+      </Link>
+
+      <button
+        type="button"
+        onClick={() => setShowDelete(true)}
+        className="rounded-lg border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-600 transition hover:bg-red-50"
+      >
+        Delete
+      </button>
+    </div>
+  );
 
   return (
     <section className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6">
@@ -350,19 +401,13 @@ const ItemDetails = () => {
             </p>
 
             {isOwner ? (
-              <div className="mt-8 rounded-xl border border-emerald-100 bg-emerald-50/60 p-4 sm:flex sm:items-center sm:justify-between sm:gap-4">
-                <p className="mb-3 text-sm text-slate-600 sm:mb-0">
-                  You reported this item. Review the claims other
-                  students have submitted for it.
+              <div className="mt-8 rounded-xl border border-emerald-100 bg-emerald-50/60 p-4">
+                <p className="text-sm text-slate-600">
+                  You reported this item. Review the claims students
+                  submitted, or update the report.
                 </p>
 
-                <Link
-                  to={`/manage-claims/${item.id}`}
-                  className="group inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-6 py-3 text-sm font-bold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-emerald-700 sm:w-auto"
-                >
-                  Manage Claims
-                  <ArrowIcon className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                </Link>
+                {reporterActions}
               </div>
             ) : (
               <>
@@ -382,22 +427,34 @@ const ItemDetails = () => {
                   </button>
                 </div>
 
-                {/* Always keep claims reachable for the reporter, even if the
-                    owner could not be detected. The backend still decides
-                    who may actually see or decide on the claims. */}
-                <p className="mt-4 text-center text-sm text-slate-500">
-                  Did you report this item?{" "}
-                  <Link
-                    to="/notifications"
-                    className="font-semibold text-blue-600 hover:underline"
-                  >
-                    Review its claims in Notifications
-                  </Link>
-                </p>
+                {/* The API does not say who reported an item, so keep the
+                    reporter's tools reachable. The backend still refuses
+                    anyone who is not the reporter. */}
+                {detectedOwner === null && (
+                  <details className="group mt-4 rounded-xl border border-slate-200 bg-white p-4">
+                    <summary className="cursor-pointer text-sm font-semibold text-slate-600 hover:text-blue-700">
+                      Reporter options (did you report this item?)
+                    </summary>
+
+                    {reporterActions}
+                  </details>
+                )}
               </>
             )}
           </div>
         </div>
+
+        {showDelete && (
+          <ConfirmDialog
+            danger
+            busy={deleting}
+            title="Delete this item?"
+            message="This report will be removed permanently for everyone. Only the person who reported it can delete it. This cannot be undone."
+            confirmLabel="Yes, delete"
+            onConfirm={handleDelete}
+            onCancel={() => setShowDelete(false)}
+          />
+        )}
 
         {zoomed && (
           <Lightbox
