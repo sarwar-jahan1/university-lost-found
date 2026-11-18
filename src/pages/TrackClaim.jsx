@@ -1,12 +1,12 @@
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { apiRequest } from "../services/api";
-
-const statusStyles = {
-  PENDING: "bg-yellow-100 text-yellow-800",
-  APPROVED: "bg-green-100 text-green-800",
-  REJECTED: "bg-red-100 text-red-800",
-};
+import StatusBadge from "../components/ui/StatusBadge";
+import { ListRowSkeleton } from "../components/ui/Skeleton";
+import { ArrowIcon } from "../components/ui/Icons";
+import useDocumentTitle from "../hooks/useDocumentTitle";
+import { getClaimItemId, getClaimItemTitle } from "../utils/claims";
 
 const normalizeClaims = (data) => {
   if (Array.isArray(data)) return data;
@@ -16,94 +16,239 @@ const normalizeClaims = (data) => {
   return [];
 };
 
+const FILTERS = ["ALL", "PENDING", "APPROVED", "REJECTED"];
+
+const statusHints = {
+  PENDING: "Waiting for the reporter to review your claim.",
+  APPROVED: "Your claim was approved. Contact the reporter to collect the item.",
+  REJECTED: "This claim was not approved.",
+};
+
+const accent = {
+  PENDING: "border-l-amber-400",
+  APPROVED: "border-l-emerald-500",
+  REJECTED: "border-l-red-400",
+};
+
 const TrackClaim = () => {
+  useDocumentTitle("Track Claims");
+
   const [claims, setClaims] = useState([]);
+  const [filter, setFilter] = useState("ALL");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const [reloadKey, setReloadKey] = useState(0);
+
+  const reload = () => {
+    setLoading(true);
+    setError("");
+    setReloadKey((key) => key + 1);
+  };
+
   useEffect(() => {
+    let active = true;
+
     const fetchClaims = async () => {
       try {
         const data = await apiRequest("/api/claims/");
-        setClaims(normalizeClaims(data));
+        if (active) setClaims(normalizeClaims(data));
       } catch (err) {
-        setError(err.message || "Unable to load your claims.");
+        if (active) setError(err.message || "Unable to load your claims.");
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     };
 
     fetchClaims();
-  }, []);
+
+    return () => {
+      active = false;
+    };
+  }, [reloadKey]);
+
+  const getStatus = (claim) =>
+    String(claim.status || "PENDING").toUpperCase();
+
+  const counts = useMemo(() => {
+    const result = { ALL: claims.length, PENDING: 0, APPROVED: 0, REJECTED: 0 };
+
+    claims.forEach((claim) => {
+      const key = getStatus(claim);
+      if (key in result) result[key] += 1;
+    });
+
+    return result;
+  }, [claims]);
+
+  const visibleClaims = claims.filter(
+    (claim) => filter === "ALL" || getStatus(claim) === filter
+  );
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-12">
-      <h1 className="mb-2 text-3xl font-bold text-slate-900">
-        Track My Claims
-      </h1>
+      <div className="animate-fade-up mb-8 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="mb-2 text-3xl font-extrabold text-slate-900">
+            Track My Claims
+          </h1>
 
-      <p className="mb-8 text-slate-600">
-        View the status of claims you have submitted.
-      </p>
+          <p className="text-slate-600">
+            View the status of claims you have submitted.
+          </p>
+        </div>
+
+        {!loading && !error && (
+          <button
+            type="button"
+            onClick={reload}
+            className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:border-blue-300 hover:text-blue-700"
+          >
+            ↻ Refresh
+          </button>
+        )}
+      </div>
 
       {loading && (
-        <p className="rounded-lg bg-slate-50 p-5 text-slate-600">
-          Loading your claims...
-        </p>
+        <div className="space-y-4" aria-busy="true" aria-label="Loading claims">
+          <ListRowSkeleton />
+          <ListRowSkeleton />
+          <ListRowSkeleton />
+        </div>
       )}
 
       {!loading && error && (
-        <p className="rounded-lg bg-red-50 p-4 text-red-700">
-          {error}
-        </p>
+        <div
+          role="alert"
+          className="rounded-xl border border-red-100 bg-red-50 p-5 text-red-700"
+        >
+          <p>{error}</p>
+
+          <button
+            type="button"
+            onClick={reload}
+            className="mt-3 text-sm font-semibold underline"
+          >
+            Try Again
+          </button>
+        </div>
       )}
 
       {!loading && !error && claims.length === 0 && (
-        <p className="rounded-lg bg-slate-50 p-5 text-slate-600">
-          You have not submitted any claims yet.
-        </p>
+        <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-slate-100 text-2xl">
+            📝
+          </div>
+
+          <h2 className="text-lg font-bold text-slate-800">
+            You have not submitted any claims yet.
+          </h2>
+
+          <p className="mt-2 text-sm text-slate-500">
+            Find an item that belongs to you and submit a claim.
+          </p>
+
+          <Link
+            to="/items"
+            className="mt-5 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
+          >
+            Browse Items
+            <ArrowIcon />
+          </Link>
+        </div>
       )}
 
       {!loading && !error && claims.length > 0 && (
-        <div className="space-y-4">
-          {claims.map((claim) => {
-            const status = String(claim.status || "PENDING").toUpperCase();
+        <>
+          {/* Summary + filter tabs */}
+          <div
+            role="group"
+            aria-label="Filter claims by status"
+            className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4"
+          >
+            {FILTERS.map((key) => {
+              const active = filter === key;
 
-            return (
-              <article
-                key={claim.id}
-                className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
-              >
-                <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-                  <h2 className="text-lg font-bold text-slate-900">
-                    Claim #{claim.id}
-                  </h2>
-
-                  <span
-                    className={`rounded-full px-3 py-1 text-xs font-bold ${
-                      statusStyles[status] ||
-                      "bg-slate-100 text-slate-700"
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => setFilter(key)}
+                  className={`rounded-xl border p-4 text-left transition ${
+                    active
+                      ? "border-blue-600 bg-blue-600 text-white shadow-md"
+                      : "border-slate-200 bg-white text-slate-700 hover:border-blue-300"
+                  }`}
+                >
+                  <p className="text-2xl font-extrabold">{counts[key]}</p>
+                  <p
+                    className={`text-xs font-semibold uppercase tracking-wide ${
+                      active ? "text-blue-100" : "text-slate-500"
                     }`}
                   >
-                    {status}
-                  </span>
-                </div>
-
-                {claim.itemId !== undefined && (
-                  <p className="mb-2 text-sm text-slate-600">
-                    Item ID: {claim.itemId}
+                    {key === "ALL" ? "All Claims" : key.toLowerCase()}
                   </p>
-                )}
+                </button>
+              );
+            })}
+          </div>
 
-                {claim.description && (
-                  <p className="text-sm leading-6 text-slate-600">
-                    {claim.description}
-                  </p>
-                )}
-              </article>
-            );
-          })}
-        </div>
+          {visibleClaims.length === 0 ? (
+            <p className="rounded-xl bg-white p-8 text-center text-sm text-slate-500">
+              No {filter.toLowerCase()} claims.
+            </p>
+          ) : (
+            <div className="space-y-4">
+              {visibleClaims.map((claim) => {
+                const status = getStatus(claim);
+                const itemId = getClaimItemId(claim);
+                const itemTitle = getClaimItemTitle(claim);
+
+                return (
+                  <article
+                    key={claim.id}
+                    className={`animate-fade-up rounded-xl border border-l-4 border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md ${
+                      accent[status] || "border-l-slate-300"
+                    }`}
+                  >
+                    <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                      <h2 className="text-lg font-bold text-slate-900">
+                        Claim #{claim.id}
+                      </h2>
+
+                      <StatusBadge status={status} />
+                    </div>
+
+                    {itemId !== undefined && itemId !== null && (
+                      <p className="mb-2 text-sm text-slate-600">
+                        Item:{" "}
+                        <Link
+                          to={`/items/${itemId}`}
+                          className="font-semibold text-blue-600 hover:underline"
+                        >
+                          {itemTitle || `#${itemId}`}
+                        </Link>
+                      </p>
+                    )}
+
+                    {claim.description && (
+                      <p className="rounded-lg bg-slate-50 p-3 text-sm leading-6 text-slate-600">
+                        {claim.description}
+                      </p>
+                    )}
+
+                    {statusHints[status] && (
+                      <p className="mt-3 text-xs text-slate-400">
+                        {statusHints[status]}
+                      </p>
+                    )}
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </>
       )}
     </div>
   );

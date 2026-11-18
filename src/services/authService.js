@@ -4,9 +4,8 @@ import {
   saveAccessToken,
   removeAccessToken,
   getAccessToken,
+  USER_KEY,
 } from "./api";
-
-const USER_KEY = "campus_user";
 
 // Register a new account
 export const signupUser = async ({ name, email, password }) => {

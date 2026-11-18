@@ -4,7 +4,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import MainLayout from "./layouts/MainLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
 
-import Home from "./pages/Home";
+import Dashboard from "./pages/Dashboard";
 import Auth from "./pages/Auth";
 import Items from "./pages/Items";
 import ItemDetails from "./pages/ItemDetails";
@@ -12,11 +12,12 @@ import ReportItem from "./pages/ReportItem";
 import TrackClaim from "./pages/TrackClaim";
 import Profile from "./pages/Profile";
 import ManageClaims from "./pages/ManageClaims";
+import NotFound from "./pages/NotFound";
 
 function App() {
   return (
     <Routes>
-      {/* Authentication page without Navbar */}
+      {/* Landing / authentication page without sidebar */}
       <Route path="/auth" element={<Auth />} />
       <Route path="/login" element={<Navigate to="/auth" replace />} />
       <Route path="/signup" element={<Navigate to="/auth" replace />} />
@@ -24,8 +25,9 @@ function App() {
       {/* All application pages */}
       <Route element={<ProtectedRoute />}>
         <Route element={<MainLayout />}>
-          <Route path="/" element={<Navigate to="/home" replace />} />
-          <Route path="/home" element={<Home />} />
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/home" element={<Navigate to="/dashboard" replace />} />
 
           <Route path="/items" element={<Items />} />
           <Route path="/browse-items" element={<Items />} />
@@ -42,14 +44,11 @@ function App() {
           />
 
           <Route path="/profile" element={<Profile />} />
+
+          {/* 404 (signed-in users) */}
+          <Route path="*" element={<NotFound />} />
         </Route>
       </Route>
-
-      {/* 404 */}
-      <Route
-        path="*"
-        element={<Navigate to="/auth" replace />}
-      />
     </Routes>
   );
 }

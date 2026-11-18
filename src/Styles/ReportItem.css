@@ -703,3 +703,12 @@
     transition-duration: 0.01ms !important;
   }
 }
+.report-list-card h3 a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.report-list-card h3 a:hover {
+  color: #2563eb;
+  text-decoration: underline;
+}

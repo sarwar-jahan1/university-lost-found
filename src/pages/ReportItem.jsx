@@ -1,5 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { apiRequest } from "../services/api";
+import { useToast } from "../components/ui/toastContext";
+import useDocumentTitle from "../hooks/useDocumentTitle";
 import "../Styles/ReportItem.css";
 
 const normalizeItem = (item) => ({
@@ -10,6 +13,11 @@ const normalizeItem = (item) => ({
 });
 
 const ReportItem = () => {
+  useDocumentTitle("Report an Item");
+
+  const { notify } = useToast();
+  const nameInputRef = useRef(null);
+
   const [formData, setFormData] = useState({
     name: "",
     status: "lost",
@@ -83,6 +91,7 @@ const ReportItem = () => {
       !formData.description.trim()
     ) {
       setError("Please fill in all required fields.");
+      notify("Please fill in all required fields.", "error");
       return;
     }
 
@@ -113,8 +122,11 @@ const ReportItem = () => {
 
       resetForm();
       setSuccess("Your report has been submitted successfully.");
+      notify("Report submitted successfully.", "success");
+      nameInputRef.current?.focus({ preventScroll: true });
     } catch (err) {
       setError(err.message || "Unable to submit report.");
+      notify(err.message || "Unable to submit report.", "error");
     } finally {
       setSubmitting(false);
     }
@@ -184,6 +196,7 @@ const ReportItem = () => {
 
               <input
                 id="item-name"
+                ref={nameInputRef}
                 type="text"
                 name="name"
                 value={formData.name}
@@ -193,7 +206,10 @@ const ReportItem = () => {
                 required
               />
 
-              <small>Enter a short and recognizable item name.</small>
+              <div className="report-description-footer">
+                <small>Enter a short and recognizable item name.</small>
+                <small>{formData.name.length}/100</small>
+              </div>
             </div>
 
             {/* Lost or Found */}
@@ -440,7 +456,9 @@ const ReportItem = () => {
                     </span>
                   </div>
 
-                  <h3>{report.name}</h3>
+                  <h3>
+                    <Link to={`/items/${report.id}`}>{report.name}</Link>
+                  </h3>
 
                   <p className="report-list-description">
                     {report.description || "No description available."}
