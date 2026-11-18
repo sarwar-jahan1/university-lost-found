@@ -1,8 +1,14 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import "../Styles/ReportItem.css";
 
-const STORAGE_KEY = "campus_lost_found_items";
+import {
+  getReports,
+  createReport,
+  deleteReport
+} from "../services/api";
+
+
 
 const ReportItem = () => {
   const [formData, setFormData] = useState({
@@ -16,18 +22,41 @@ const ReportItem = () => {
   });
 
   const [imagePreview, setImagePreview] = useState("");
-  const [reports, setReports] = useState(() => {
-    try {
-      const saved = JSON.parse(
-        localStorage.getItem(STORAGE_KEY) || "[]"
-      );
-      return Array.isArray(saved) ? saved : [];
-    } catch {
-      return [];
-    }
-  });
+  const [reports, setReports] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const [error, setError] = useState("");
+  // Load reports from backend
+  useEffect(() => {
+    const loadReports = async () => {
+      try {
+        setLoading(true);
+
+        const data = await getReports();
+
+        const formattedReports = (Array.isArray(data) ? data : data.items || []).map((report) => ({
+          id: report.id,
+          name: report.title,
+          status: report.type.toLowerCase(),
+          category: report.category || "",
+          location: report.location,
+          date: report.eventDate,
+          description: report.description,
+          image: report.image || "",
+        }));
+
+        setReports(formattedReports);
+
+      } catch (err) {
+        console.error("Failed to load reports:", err);
+        setError("Unable to load reports from server.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadReports();
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -92,58 +121,65 @@ const ReportItem = () => {
   };
 
   // Submit report
-  const handleSubmit = (e) => {
+  // Submit report to backend
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
 
     try {
-      const newReport = {
-        ...formData,
-        id: `user-${Date.now()}`,
-        status:
-          formData.status.charAt(0).toUpperCase() +
-          formData.status.slice(1),
-        image: formData.image || "",
+      const reportData = {
+        title: formData.name.trim(),
+        description: formData.description.trim(),
+        type: formData.status.toUpperCase(),
+        location: formData.location.trim(),
+        eventDate: formData.date,
       };
 
-      const savedData = JSON.parse(
-        localStorage.getItem(STORAGE_KEY) || "[]"
-      );
+      const savedReport = await createReport(reportData);
 
-      const updatedReports = [
-        newReport,
-        ...(Array.isArray(savedData) ? savedData : []),
-      ];
+      const formattedReport = {
+        id: savedReport.id,
+        name: savedReport.title,
+        status: savedReport.type.toLowerCase(),
+        category: savedReport.category || "",
+        location: savedReport.location,
+        date: savedReport.eventDate,
+        description: savedReport.description,
+        image: savedReport.image || "",
+      };
 
-      localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify(updatedReports)
-      );
+      setReports((previous) => [
+        formattedReport,
+        ...previous,
+      ]);
 
-      setReports(updatedReports);
       resetForm();
+
+      alert("Report submitted successfully!");
+
     } catch (err) {
       console.error("Report submission error:", err);
-      setError("Unable to submit report. Please try again.");
+      setError(err.message || "Unable to submit report.");
     }
   };
 
   // Delete report
-  const handleDelete = (id) => {
-    const updatedReports = reports.filter(
-      (report) => String(report.id) !== String(id)
-    );
-
+  // Delete report from backend
+  const handleDelete = async (id) => {
     try {
-      localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify(updatedReports)
+      await deleteReport(id);
+
+      setReports((previous) =>
+        previous.filter(
+          (report) => String(report.id) !== String(id)
+        )
       );
 
-      setReports(updatedReports);
+      setError("");
+
     } catch (err) {
       console.error("Could not delete report:", err);
-      setError("Unable to delete report.");
+      setError(err.message || "Unable to delete report.");
     }
   };
 
@@ -296,7 +332,9 @@ const ReportItem = () => {
 
         <h2>Submitted Reports</h2>
 
-        {reports.length === 0 ? (
+        {loading ? (
+          <p>Loading reports...</p>
+        ) : reports.length === 0 ? (
           <p className="empty-reports">
             No reports submitted yet.
           </p>
