@@ -1,6 +1,7 @@
 
 import { useState } from "react";
-import { useNavigate, Navigate } from "react-router-dom";
+import { Navigate } from "react-router-dom";
+
 import {
   signupUser,
   loginUser,
@@ -8,8 +9,6 @@ import {
 } from "../services/authService";
 
 const Auth = () => {
-  const navigate = useNavigate();
-
   const [activeTab, setActiveTab] = useState("signin");
 
   const [name, setName] = useState("");
@@ -50,7 +49,9 @@ const Auth = () => {
           password,
         });
 
-        navigate("/home", { replace: true });
+        // Reload app with the newly logged-in user
+        window.location.replace("/home");
+        return;
       }
     } catch (err) {
       setError(err.message || "Something went wrong.");
@@ -67,7 +68,6 @@ const Auth = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4 py-10">
-
       <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-lg">
 
         <div className="mb-8 text-center">
@@ -84,8 +84,8 @@ const Auth = () => {
           </p>
         </div>
 
+        {/* Tabs */}
         <div className="mb-6 grid grid-cols-2 rounded-lg bg-slate-100 p-1">
-
           <button
             type="button"
             onClick={() => switchTab("signin")}
@@ -109,7 +109,6 @@ const Auth = () => {
           >
             Sign Up
           </button>
-
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
@@ -192,9 +191,7 @@ const Auth = () => {
                 ? "Sign In"
                 : "Create Account"}
           </button>
-
         </form>
-
       </div>
     </div>
   );

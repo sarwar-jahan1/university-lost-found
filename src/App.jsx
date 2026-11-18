@@ -1,7 +1,8 @@
 
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 
 import MainLayout from "./layouts/MainLayout";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 import Home from "./pages/Home";
 import Auth from "./pages/Auth";
@@ -15,52 +16,40 @@ import ManageClaims from "./pages/ManageClaims";
 function App() {
   return (
     <Routes>
-      <Route element={<MainLayout />}>
-        {/* Home */}
-        <Route path="/" element={<Home />} />
-        <Route path="/home" element={<Home />} />
+      {/* Authentication page without Navbar */}
+      <Route path="/auth" element={<Auth />} />
+      <Route path="/login" element={<Navigate to="/auth" replace />} />
+      <Route path="/signup" element={<Navigate to="/auth" replace />} />
 
-        {/* Authentication */}
-        <Route path="/auth" element={<Auth />} />
-        <Route path="/login" element={<Auth />} />
-        <Route path="/signup" element={<Auth />} />
+      {/* All application pages */}
+      <Route element={<ProtectedRoute />}>
+        <Route element={<MainLayout />}>
+          <Route path="/" element={<Navigate to="/home" replace />} />
+          <Route path="/home" element={<Home />} />
 
-        {/* Items */}
-        <Route path="/items" element={<Items />} />
-        <Route path="/browse-items" element={<Items />} />
-        <Route path="/items/:id" element={<ItemDetails />} />
+          <Route path="/items" element={<Items />} />
+          <Route path="/browse-items" element={<Items />} />
+          <Route path="/items/:id" element={<ItemDetails />} />
 
-        {/* Report */}
-        <Route path="/report-item" element={<ReportItem />} />
+          <Route path="/report-item" element={<ReportItem />} />
 
-        {/* Claims */}
-        <Route path="/track-claims" element={<TrackClaim />} />
-        <Route path="/track-claim" element={<TrackClaim />} />
-        <Route
-          path="/manage-claims/:itemId"
-          element={<ManageClaims />}
-        />
+          <Route path="/track-claims" element={<TrackClaim />} />
+          <Route path="/track-claim" element={<TrackClaim />} />
 
-        {/* Profile */}
-        <Route path="/profile" element={<Profile />} />
+          <Route
+            path="/manage-claims/:itemId"
+            element={<ManageClaims />}
+          />
 
-        {/* 404 */}
-        <Route
-          path="*"
-          element={
-            <div className="flex min-h-[60vh] items-center justify-center">
-              <div className="text-center">
-                <h1 className="text-4xl font-bold text-slate-900">
-                  404
-                </h1>
-                <p className="mt-2 text-slate-600">
-                  Page not found.
-                </p>
-              </div>
-            </div>
-          }
-        />
+          <Route path="/profile" element={<Profile />} />
+        </Route>
       </Route>
+
+      {/* 404 */}
+      <Route
+        path="*"
+        element={<Navigate to="/auth" replace />}
+      />
     </Routes>
   );
 }

@@ -1,3 +1,4 @@
+
 import {
   apiRequest,
   saveAccessToken,
@@ -19,7 +20,7 @@ export const signupUser = async ({ name, email, password }) => {
   });
 };
 
-// Login and receive JWT token
+// Login
 export const loginUser = async ({ email, password }) => {
   const data = await apiRequest("/api/auth/signin/", {
     method: "POST",
@@ -35,7 +36,6 @@ export const loginUser = async ({ email, password }) => {
 
   saveAccessToken(data.accessToken);
 
-  // Try to get the logged-in user's profile
   try {
     const user = await apiRequest("/api/user/me/");
 
@@ -43,8 +43,7 @@ export const loginUser = async ({ email, password }) => {
 
     return user;
   } catch {
-    // Token was received successfully.
-    // Keep it even if the profile endpoint fails.
+    // Keep the received token if the profile endpoint fails.
     const fallbackUser = { email };
 
     localStorage.setItem(USER_KEY, JSON.stringify(fallbackUser));
@@ -53,7 +52,7 @@ export const loginUser = async ({ email, password }) => {
   }
 };
 
-// Get current user from local storage
+// Get current user
 export const getCurrentUser = () => {
   if (!getAccessToken()) {
     return null;
@@ -67,18 +66,18 @@ export const getCurrentUser = () => {
   }
 };
 
-// Check whether a token exists
+// Check authentication
 export const isAuthenticated = () => {
   return Boolean(getAccessToken());
 };
 
-// Sign out
+// Logout
 export const logoutUser = () => {
   removeAccessToken();
   localStorage.removeItem(USER_KEY);
 };
 
-// Fetch the authenticated user profile from the backend
+// Fetch current user profile
 export const fetchCurrentUser = async () => {
   const user = await apiRequest("/api/user/me/");
 
