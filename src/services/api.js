@@ -1,71 +1,86 @@
 
-const BASE_URL = "http://localhost:8080";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-// This key must match the key used by your login integration.
 const TOKEN_KEY = "campus_access_token";
 
-// Common request function
-const apiRequest = async (endpoint, options = {}) => {
-    const token = localStorage.getItem(TOKEN_KEY);
+export const getAccessToken = () => {
+  return localStorage.getItem(TOKEN_KEY);
+};
 
-    const headers = {
-        Accept: "application/json",
-        ...options.headers,
-    };
+export const saveAccessToken = (token) => {
+  localStorage.setItem(TOKEN_KEY, token);
+};
 
-    if (options.body) {
-        headers["Content-Type"] = "application/json";
-    }
+export const removeAccessToken = () => {
+  localStorage.removeItem(TOKEN_KEY);
+};
 
-    if (token) {
-        headers.Authorization = `Bearer ${token}`;
-    }
+export const apiRequest = async (endpoint, options = {}) => {
+  if (!API_BASE_URL) {
+    throw new Error("Backend URL is not configured. Check your .env file.");
+  }
 
-    const response = await fetch(`${BASE_URL}${endpoint}`, {
+  const token = getAccessToken();
+
+  const headers = {
+    Accept: "application/json",
+    ...options.headers,
+  };
+
+  if (options.body && !(options.body instanceof FormData)) {
+    headers["Content-Type"] = "application/json";
+  }
+
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  let response;
+
+  try {
+    response = await fetch(
+      `${API_BASE_URL.replace(/\/+$/, "")}${endpoint}`,
+      {
         ...options,
         headers,
-    });
+      }
+    );
+  } catch {
+    throw new Error(
+      "Cannot connect to backend. Check your internet connection."
+    );
+  }
 
-    if (response.status === 204) {
-        return null;
+  const responseText = await response.text();
+
+  let data = null;
+
+  if (responseText) {
+    try {
+      data = JSON.parse(responseText);
+    } catch {
+      data = responseText;
+    }
+  }
+
+  if (!response.ok) {
+    const message =
+      typeof data === "object" && data !== null
+        ? data.message || data.error || data.detail
+        : data;
+
+    if (response.status === 401) {
+      throw new Error("Session expired or invalid. Please Sign In again.");
     }
 
-    const text = await response.text();
-    let data = null;
-
-    if (text) {
-        try {
-            data = JSON.parse(text);
-        } catch {
-            data = text;
-        }
+    if (response.status === 403) {
+      throw new Error("You are not authorized to perform this action.");
     }
 
-    if (!response.ok) {
-        throw new Error(
-            data?.message || `API Error: ${response.status}`
-        );
-    }
+    throw new Error(
+      message || `Request failed with status ${response.status}`
+    );
+  }
 
-    return data;
-};
-
-// Get all item reports
-export const getReports = async () => {
-    return await apiRequest("/api/items/");
-};
-
-// Create a new item report
-export const createReport = async (reportData) => {
-    return await apiRequest("/api/items/", {
-        method: "POST",
-        body: JSON.stringify(reportData),
-    });
-};
-
-// Delete an item report
-export const deleteReport = async (id) => {
-    return await apiRequest(`/api/items/${id}/`, {
-        method: "DELETE",
-    });
+  return data;
 };

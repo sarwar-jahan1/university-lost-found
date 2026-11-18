@@ -1,45 +1,87 @@
 
-const AUTH_KEY = "campus_demo_user";
+import {
+  apiRequest,
+  saveAccessToken,
+  removeAccessToken,
+  getAccessToken,
+} from "./api";
 
-// Demo Sign In
-export const loginUser = async (email, password) => {
-  if (!email.trim() || !password.trim()) {
-    throw new Error("Please enter email and password.");
-  }
+const USER_KEY = "campus_user";
 
-  const user = {
-    email: email.trim(),
-    name: email.split("@")[0],
-  };
-
-  localStorage.setItem(AUTH_KEY, JSON.stringify(user));
-
-  return user;
+// Register a new account
+export const signupUser = async ({ name, email, password }) => {
+  return apiRequest("/api/auth/signup/", {
+    method: "POST",
+    body: JSON.stringify({
+      name,
+      email,
+      password,
+    }),
+  });
 };
 
-// Demo Sign Up
-export const registerUser = async (name, email, password) => {
-  if (!name.trim() || !email.trim() || !password.trim()) {
-    throw new Error("Please fill in all fields.");
+// Login
+export const loginUser = async ({ email, password }) => {
+  const data = await apiRequest("/api/auth/signin/", {
+    method: "POST",
+    body: JSON.stringify({
+      email,
+      password,
+    }),
+  });
+
+  if (!data || !data.accessToken) {
+    throw new Error("Sign In response did not contain an access token.");
   }
 
-  const user = {
-    name: name.trim(),
-    email: email.trim(),
-  };
+  saveAccessToken(data.accessToken);
 
-  localStorage.setItem(AUTH_KEY, JSON.stringify(user));
+  try {
+    const user = await apiRequest("/api/user/me/");
 
-  return user;
+    localStorage.setItem(USER_KEY, JSON.stringify(user));
+
+    return user;
+  } catch {
+    // Keep the received token if the profile endpoint fails.
+    const fallbackUser = { email };
+
+    localStorage.setItem(USER_KEY, JSON.stringify(fallbackUser));
+
+    return fallbackUser;
+  }
 };
 
-// Get Current User
+// Get current user
 export const getCurrentUser = () => {
-  const user = localStorage.getItem(AUTH_KEY);
-  return user ? JSON.parse(user) : null;
+  if (!getAccessToken()) {
+    return null;
+  }
+
+  try {
+    const user = localStorage.getItem(USER_KEY);
+    return user ? JSON.parse(user) : null;
+  } catch {
+    return null;
+  }
+};
+
+// Check authentication
+export const isAuthenticated = () => {
+  return Boolean(getAccessToken());
 };
 
 // Logout
 export const logoutUser = () => {
-  localStorage.removeItem(AUTH_KEY);
+  removeAccessToken();
+  localStorage.removeItem(USER_KEY);
+};
+
+// Fetch current user profile
+export const fetchCurrentUser = async () => {
+  const user = await apiRequest("/api/user/me/");
+
+  localStorage.setItem(USER_KEY, JSON.stringify(user));
+
+  return user;
 };

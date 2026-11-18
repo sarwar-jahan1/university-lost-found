@@ -1,120 +1,132 @@
-
 import { Link, useParams } from "react-router-dom";
-import { useState } from "react";
-import demoItems from "../data/items";
+import { useEffect, useState } from "react";
+import { apiRequest } from "../services/api";
 import ClaimForm from "../components/ClaimForm";
 import "./ItemDetails.css";
-
 
 const ItemDetails = () => {
   const { id } = useParams();
 
+  const [item, setItem] = useState(null);
   const [showClaimForm, setShowClaimForm] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const item = demoItems.find(
-    (currentItem) => String(currentItem.id) === String(id)
-  );
+  useEffect(() => {
+    let active = true;
 
-  if (!item) {
+    const fetchItem = async () => {
+      try {
+        setLoading(true);
+        setError("");
+
+        const data = await apiRequest(`/api/items/${id}/`);
+        const itemData = data?.item || data;
+
+        if (!itemData || !itemData.id) {
+          throw new Error("Item not found.");
+        }
+
+        if (active) {
+          setItem(itemData);
+        }
+      } catch (err) {
+        if (active) {
+          setError(err.message || "Failed to load item.");
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchItem();
+
+    return () => {
+      active = false;
+    };
+  }, [id]);
+
+  if (loading) {
     return (
       <div className="details-not-found">
-        <h1>Item Not Found</h1>
-        <p>The requested item does not exist.</p>
-
-        <Link to="/items">
-          Back to Items
-        </Link>
+        <h1>Loading item...</h1>
       </div>
     );
   }
 
+  if (error || !item) {
+    return (
+      <div className="details-not-found">
+        <h1>Item Not Found</h1>
+        <p>{error || "The requested item does not exist."}</p>
+        <Link to="/items">Back to Items</Link>
+      </div>
+    );
+  }
+
+  const status =
+    item.type === "LOST"
+      ? "Lost"
+      : item.type === "FOUND"
+        ? "Found"
+        : item.status || item.type;
+
+  const eventDate = item.eventDate
+    ? new Date(`${item.eventDate}T00:00:00`).toLocaleDateString(
+        "en-US",
+        {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        }
+      )
+    : "Date unavailable";
+
   return (
     <section className="details-page">
       <div className="details-container">
-
         <Link to="/items" className="details-back">
           ← Back to Items
         </Link>
 
         <div className="details-card">
-
-          {/* Item Image */}
-          <div className="details-image-wrapper">
-            <img
-              src={item.image}
-              alt={item.name}
-            />
-
-            <span
-              className={`details-status ${item.status.toLowerCase()}`}
-            >
-              {item.status}
-            </span>
-          </div>
-
-          {/* Item Information */}
           <div className="details-content">
-
-            <span className="details-category">
-              {item.category}
+            <span className={`details-status ${status.toLowerCase()}`}>
+              {status}
             </span>
 
-            <h1>{item.name}</h1>
+            <h1>{item.title || item.name || "Untitled Item"}</h1>
 
-            <p>
-              📍 Location: {item.location}
-            </p>
+            <p>📍 Location: {item.location || "Not available"}</p>
 
-            <p>
-              📅 Date:{" "}
-              {new Date(
-                item.date + "T00:00:00"
-              ).toLocaleDateString("en-US", {
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-              })}
-            </p>
-
-            <p>
-              Reported By: University Student
-            </p>
+            <p>📅 Date: {eventDate}</p>
 
             <hr />
 
             <h2>Item Description</h2>
 
-            <p>{item.description}</p>
+            <p>
+              {item.description || "No description available."}
+            </p>
 
-            {/* Claim Button */}
-            {item.status === "Found" ? (
-              <button
-                type="button"
-                onClick={() => setShowClaimForm(true)}
-                className="details-claim-button"
-              >
-                Claim This Item →
-              </button>
-            ) : (
-              <Link
-                to="/track-claim"
-                className="details-claim-button"
-              >
-                Track Claim →
-              </Link>
-            )}
-
+            <button
+              type="button"
+              onClick={() => setShowClaimForm(true)}
+              className="details-claim-button"
+            >
+              Claim This Item →
+            </button>
           </div>
         </div>
 
-        {/* Claim Form Popup */}
         {showClaimForm && (
           <ClaimForm
             itemId={item.id}
             onClose={() => setShowClaimForm(false)}
           />
         )}
-
       </div>
     </section>
   );

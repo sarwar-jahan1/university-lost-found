@@ -2,58 +2,54 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 
 import MainLayout from "./layouts/MainLayout";
-import Auth from "./pages/Auth";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 import Home from "./pages/Home";
+import Auth from "./pages/Auth";
 import Items from "./pages/Items";
-import ReportItem from "./pages/ReportItem";
 import ItemDetails from "./pages/ItemDetails";
+import ReportItem from "./pages/ReportItem";
 import TrackClaim from "./pages/TrackClaim";
-
-import { getCurrentUser } from "./services/authService";
-
-// Protect the main website pages
-const ProtectedLayout = () => {
-  const user = getCurrentUser();
-
-  if (!user) {
-    return <Navigate to="/" replace />;
-  }
-
-  return <MainLayout />;
-};
+import Profile from "./pages/Profile";
+import ManageClaims from "./pages/ManageClaims";
 
 function App() {
-  const user = getCurrentUser();
-
   return (
     <Routes>
+      {/* Authentication page without Navbar */}
+      <Route path="/auth" element={<Auth />} />
+      <Route path="/login" element={<Navigate to="/auth" replace />} />
+      <Route path="/signup" element={<Navigate to="/auth" replace />} />
 
-      {/* Login / Sign Up */}
-      <Route
-        path="/"
-        element={
-          user
-            ? <Navigate to="/home" replace />
-            : <Auth />
-        }
-      />
+      {/* All application pages */}
+      <Route element={<ProtectedRoute />}>
+        <Route element={<MainLayout />}>
+          <Route path="/" element={<Navigate to="/home" replace />} />
+          <Route path="/home" element={<Home />} />
 
-      {/* Protected Website Pages */}
-      <Route element={<ProtectedLayout />}>
-        <Route path="/home" element={<Home />} />
-        <Route path="/items" element={<Items />} />
-        <Route path="/report-item" element={<ReportItem />} />
-        <Route path="/items/:id" element={<ItemDetails />} />
-        <Route path="/track-claim" element={<TrackClaim />} />
+          <Route path="/items" element={<Items />} />
+          <Route path="/browse-items" element={<Items />} />
+          <Route path="/items/:id" element={<ItemDetails />} />
+
+          <Route path="/report-item" element={<ReportItem />} />
+
+          <Route path="/track-claims" element={<TrackClaim />} />
+          <Route path="/track-claim" element={<TrackClaim />} />
+
+          <Route
+            path="/manage-claims/:itemId"
+            element={<ManageClaims />}
+          />
+
+          <Route path="/profile" element={<Profile />} />
+        </Route>
       </Route>
 
-      {/* Unknown URL */}
+      {/* 404 */}
       <Route
         path="*"
-        element={<Navigate to="/" replace />}
+        element={<Navigate to="/auth" replace />}
       />
-
     </Routes>
   );
 }

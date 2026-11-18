@@ -1,61 +1,51 @@
-
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+import { apiRequest } from "../services/api";
 import "../Styles/ReportItem.css";
 
-import {
-  getReports,
-  createReport,
-  deleteReport
-} from "../services/api";
-
-
+const normalizeItem = (item) => ({
+  ...item,
+  name: item.title || "Untitled Item",
+  status: item.type === "LOST" ? "Lost" : "Found",
+  date: item.eventDate || "",
+});
 
 const ReportItem = () => {
   const [formData, setFormData] = useState({
     name: "",
     status: "lost",
-    category: "",
     location: "",
     date: "",
     description: "",
-    image: "",
   });
 
-  const [imagePreview, setImagePreview] = useState("");
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
-
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-  // Load reports from backend
+  const [success, setSuccess] = useState("");
+
+  const today = new Date().toLocaleDateString("en-CA");
+
+  const fetchReports = async () => {
+    try {
+      setError("");
+
+      const data = await apiRequest("/api/items/");
+
+      const itemList = Array.isArray(data)
+        ? data
+        : data?.content || data?.items || [];
+
+      setReports(itemList.map(normalizeItem));
+    } catch (err) {
+      setError(err.message || "Unable to load reports.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const loadReports = async () => {
-      try {
-        setLoading(true);
-
-        const data = await getReports();
-
-        const formattedReports = (Array.isArray(data) ? data : data.items || []).map((report) => ({
-          id: report.id,
-          name: report.title,
-          status: report.type.toLowerCase(),
-          category: report.category || "",
-          location: report.location,
-          date: report.eventDate,
-          description: report.description,
-          image: report.image || "",
-        }));
-
-        setReports(formattedReports);
-
-      } catch (err) {
-        console.error("Failed to load reports:", err);
-        setError("Unable to load reports from server.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadReports();
+    fetchReports();
   }, []);
 
   const handleChange = (e) => {
@@ -65,69 +55,41 @@ const ReportItem = () => {
       ...previous,
       [name]: value,
     }));
+
+    setError("");
+    setSuccess("");
   };
 
-  // Image upload and preview
-  const handleImageChange = (e) => {
-    const file = e.target.files?.[0];
-
-    if (!file) return;
-
-    if (!file.type.startsWith("image/")) {
-      setError("Please select a valid image.");
-      e.target.value = "";
-      return;
-    }
-
-    if (file.size > 1024 * 1024) {
-      setError("Image size must be less than 1 MB.");
-      e.target.value = "";
-      return;
-    }
-
-    const reader = new FileReader();
-
-    reader.onloadend = () => {
-      setImagePreview(reader.result);
-
-      setFormData((previous) => ({
-        ...previous,
-        image: reader.result,
-      }));
-
-      setError("");
-    };
-
-    reader.readAsDataURL(file);
-  };
-
-  // Reset form
   const resetForm = () => {
     setFormData({
       name: "",
       status: "lost",
-      category: "",
       location: "",
       date: "",
       description: "",
-      image: "",
     });
-
-    setImagePreview("");
-    setError("");
-
-    const fileInput = document.getElementById("report-image");
-    if (fileInput) fileInput.value = "";
   };
 
-  // Submit report
-  // Submit report to backend
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     setError("");
+    setSuccess("");
+
+    if (
+      !formData.name.trim() ||
+      !formData.location.trim() ||
+      !formData.date ||
+      !formData.description.trim()
+    ) {
+      setError("Please fill in all required fields.");
+      return;
+    }
 
     try {
-      const reportData = {
+      setSubmitting(true);
+
+      const payload = {
         title: formData.name.trim(),
         description: formData.description.trim(),
         type: formData.status.toUpperCase(),
@@ -135,258 +97,374 @@ const ReportItem = () => {
         eventDate: formData.date,
       };
 
-      const savedReport = await createReport(reportData);
+      const createdItem = await apiRequest("/api/items/", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
 
-      const formattedReport = {
-        id: savedReport.id,
-        name: savedReport.title,
-        status: savedReport.type.toLowerCase(),
-        category: savedReport.category || "",
-        location: savedReport.location,
-        date: savedReport.eventDate,
-        description: savedReport.description,
-        image: savedReport.image || "",
-      };
-
-      setReports((previous) => [
-        formattedReport,
-        ...previous,
-      ]);
+      if (createdItem && createdItem.id) {
+        setReports((previous) => [
+          normalizeItem(createdItem),
+          ...previous,
+        ]);
+      } else {
+        await fetchReports();
+      }
 
       resetForm();
-
-      alert("Report submitted successfully!");
-
+      setSuccess("Your report has been submitted successfully.");
     } catch (err) {
-      console.error("Report submission error:", err);
       setError(err.message || "Unable to submit report.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  // Delete report
-  // Delete report from backend
-  const handleDelete = async (id) => {
-    try {
-      await deleteReport(id);
+  const formatDate = (date) => {
+    if (!date) return "Date unavailable";
 
-      setReports((previous) =>
-        previous.filter(
-          (report) => String(report.id) !== String(id)
-        )
-      );
+    const parsedDate = new Date(`${date}T00:00:00`);
 
-      setError("");
+    if (Number.isNaN(parsedDate.getTime())) return date;
 
-    } catch (err) {
-      console.error("Could not delete report:", err);
-      setError(err.message || "Unable to delete report.");
-    }
+    return parsedDate.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
   };
 
   return (
-    <div className="report-container">
+    <main className="report-page">
+      <div className="report-wrapper">
 
-      <h1>Report an Item</h1>
+        {/* Page Heading */}
+        <div className="report-heading">
+          <span className="report-eyebrow">
+            CAMPUS LOST & FOUND
+          </span>
 
-      <form onSubmit={handleSubmit}>
+          <h1>Report an Item</h1>
 
-        {/* Item Name */}
-        <div>
-          <label htmlFor="item-name">Item Name *</label>
-
-          <input
-            id="item-name"
-            type="text"
-            name="name"
-            value={formData.name}
-            onChange={handleChange}
-            placeholder="Enter item name"
-            required
-          />
-        </div>
-
-        {/* Lost or Found */}
-        <label>
-          <input
-            type="radio"
-            name="status"
-            value="lost"
-            checked={formData.status === "lost"}
-            onChange={handleChange}
-          />
-          Lost Item
-        </label>
-
-        <label>
-          <input
-            type="radio"
-            name="status"
-            value="found"
-            checked={formData.status === "found"}
-            onChange={handleChange}
-          />
-          Found Item
-        </label>
-
-        <p>{formData.status} Item</p>
-
-        {/* Category */}
-        <div>
-          <label htmlFor="item-category">Category *</label>
-
-          <select
-            id="item-category"
-            name="category"
-            value={formData.category}
-            onChange={handleChange}
-            required
-          >
-            <option value="">Select Category</option>
-            <option value="Bags">Bags</option>
-            <option value="Electronics">Electronics</option>
-            <option value="Accessories">Accessories</option>
-            <option value="Personal Accessories">
-              Personal Accessories
-            </option>
-            <option value="Documents">Documents</option>
-            <option value="Others">Others</option>
-          </select>
-        </div>
-
-        {/* Location */}
-        <div>
-          <label htmlFor="item-location">Location *</label>
-
-          <input
-            id="item-location"
-            type="text"
-            name="location"
-            value={formData.location}
-            onChange={handleChange}
-            placeholder="Where was it lost or found?"
-            required
-          />
-        </div>
-
-        {/* Date */}
-        <div>
-          <label htmlFor="item-date">Date *</label>
-
-          <input
-            id="item-date"
-            type="date"
-            name="date"
-            value={formData.date}
-            onChange={handleChange}
-            required
-          />
-        </div>
-
-        {/* Description */}
-        <div>
-          <label htmlFor="item-description">
-            Item Description *
-          </label>
-
-          <textarea
-            id="item-description"
-            name="description"
-            value={formData.description}
-            onChange={handleChange}
-            placeholder="Describe the item in detail..."
-            required
-          />
-        </div>
-
-        {/* Image Upload */}
-        <div>
-          <label htmlFor="report-image">Item Image</label>
-
-          <input
-            id="report-image"
-            type="file"
-            accept="image/*"
-            onChange={handleImageChange}
-          />
-
-          {imagePreview && (
-            <img
-              src={imagePreview}
-              alt="Item preview"
-            />
-          )}
-        </div>
-
-        {/* Error */}
-        {error && <p className="form-error">{error}</p>}
-
-        {/* Submit */}
-        <button type="submit">
-          Submit Report
-        </button>
-
-      </form>
-
-      {/* Submitted Reports */}
-      <div className="reports-section">
-
-        <h2>Submitted Reports</h2>
-
-        {loading ? (
-          <p>Loading reports...</p>
-        ) : reports.length === 0 ? (
-          <p className="empty-reports">
-            No reports submitted yet.
+          <p>
+            Help your campus community find lost belongings or return
+            items to their rightful owners.
           </p>
-        ) : (
-          reports.map((report) => (
-            <div className="report-card" key={report.id}>
+        </div>
 
-              {report.image && (
-                <img
-                  src={report.image}
-                  alt={report.name}
-                />
-              )}
-
-              <h3>{report.name}</h3>
-
-              <span
-                className={`report-status ${report.status.toLowerCase()}`}
+        {/* Report Form */}
+        <section className="report-form-card">
+          <div className="report-card-heading">
+            <div className="report-heading-icon">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
               >
-                {report.status}
-              </span>
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+            </div>
 
-              <p>
-                <strong>Category:</strong> {report.category}
-              </p>
+            <div>
+              <h2>Item Information</h2>
+              <p>Fill in the details below to create a report.</p>
+            </div>
+          </div>
 
-              <p>
-                <strong>Location:</strong> {report.location}
-              </p>
+          <form onSubmit={handleSubmit} className="report-form">
 
-              <p>
-                <strong>Date:</strong> {report.date}
-              </p>
+            {/* Item Name */}
+            <div className="report-field">
+              <label htmlFor="item-name">
+                Item Name <span>*</span>
+              </label>
 
-              <p>
-                <strong>Description:</strong> {report.description}
-              </p>
+              <input
+                id="item-name"
+                type="text"
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                placeholder="e.g. Samsung Galaxy Phone"
+                maxLength={100}
+                required
+              />
 
-              <button
-                type="button"
-                onClick={() => handleDelete(report.id)}
-              >
-                Delete Report
-              </button>
+              <small>Enter a short and recognizable item name.</small>
+            </div>
+
+            {/* Lost or Found */}
+            <div className="report-field">
+              <label>
+                Lost or Found <span>*</span>
+              </label>
+
+              <div className="report-type-options">
+
+                <label
+                  className={`report-type-card ${
+                    formData.status === "lost" ? "selected lost-selected" : ""
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="status"
+                    value="lost"
+                    checked={formData.status === "lost"}
+                    onChange={handleChange}
+                  />
+
+                  <span className="report-type-icon lost-icon">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <circle cx="11" cy="11" r="7" />
+                      <path d="m16 16 4 4M11 8v4M11 15h.01" />
+                    </svg>
+                  </span>
+
+                  <span className="report-type-text">
+                    <strong>Lost Item</strong>
+                    <small>I lost something</small>
+                  </span>
+
+                  <span className="report-type-check">
+                    {formData.status === "lost" ? "✓" : ""}
+                  </span>
+                </label>
+
+                <label
+                  className={`report-type-card ${
+                    formData.status === "found" ? "selected found-selected" : ""
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="status"
+                    value="found"
+                    checked={formData.status === "found"}
+                    onChange={handleChange}
+                  />
+
+                  <span className="report-type-icon found-icon">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M20 11c0 5-8 10-8 10S4 16 4 11a8 8 0 1 1 16 0Z" />
+                      <circle cx="12" cy="11" r="2.5" />
+                    </svg>
+                  </span>
+
+                  <span className="report-type-text">
+                    <strong>Found Item</strong>
+                    <small>I found something</small>
+                  </span>
+
+                  <span className="report-type-check">
+                    {formData.status === "found" ? "✓" : ""}
+                  </span>
+                </label>
+
+              </div>
+            </div>
+
+            {/* Location and Date */}
+            <div className="report-field-grid">
+
+              <div className="report-field">
+                <label htmlFor="item-location">
+                  Campus Location <span>*</span>
+                </label>
+
+                <div className="report-input-with-icon">
+                  <span className="report-input-icon">📍</span>
+
+                  <input
+                    id="item-location"
+                    type="text"
+                    name="location"
+                    value={formData.location}
+                    onChange={handleChange}
+                    placeholder="Where was it lost or found?"
+                    maxLength={150}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="report-field">
+                <label htmlFor="item-date">
+                  Date <span>*</span>
+                </label>
+
+                <div className="report-input-with-icon">
+                  <span className="report-input-icon">📅</span>
+
+                  <input
+                    id="item-date"
+                    type="date"
+                    name="date"
+                    value={formData.date}
+                    onChange={handleChange}
+                    max={today}
+                    required
+                  />
+                </div>
+              </div>
 
             </div>
-          ))
-        )}
+
+            {/* Description */}
+            <div className="report-field">
+              <label htmlFor="item-description">
+                Item Description <span>*</span>
+              </label>
+
+              <textarea
+                id="item-description"
+                name="description"
+                value={formData.description}
+                onChange={handleChange}
+                placeholder="Describe the item in detail. Include its color, brand, identifying marks, or other useful information..."
+                rows="5"
+                maxLength={1000}
+                required
+              />
+
+              <div className="report-description-footer">
+                <small>
+                  Provide enough details to help identify the item.
+                </small>
+
+                <small>
+                  {formData.description.length}/1000
+                </small>
+              </div>
+            </div>
+
+            {/* Error Message */}
+            {error && (
+              <div className="report-alert report-alert-error" role="alert">
+                <span>!</span>
+                <p>{error}</p>
+              </div>
+            )}
+
+            {/* Success Message */}
+            {success && (
+              <div className="report-alert report-alert-success" role="status">
+                <span>✓</span>
+                <p>{success}</p>
+              </div>
+            )}
+
+            {/* Submit */}
+            <button
+              type="submit"
+              className="report-submit-button"
+              disabled={submitting}
+            >
+              {submitting ? (
+                <>
+                  <span className="report-spinner" />
+                  Submitting Report...
+                </>
+              ) : (
+                <>
+                  Submit Report
+                  <span>→</span>
+                </>
+              )}
+            </button>
+
+            <p className="report-form-note">
+              <span>*</span> All fields are required.
+            </p>
+
+          </form>
+        </section>
+
+        {/* All Reports */}
+        <section className="all-reports-section">
+          <div className="all-reports-heading">
+            <div>
+              <span className="report-eyebrow">CAMPUS COMMUNITY</span>
+              <h2>All Reports</h2>
+              <p>Recently reported lost and found items.</p>
+            </div>
+
+            <span className="report-count">
+              {reports.length} Reports
+            </span>
+          </div>
+
+          {loading ? (
+            <div className="reports-loading">
+              <span className="report-spinner" />
+              Loading reports...
+            </div>
+          ) : reports.length === 0 ? (
+            <div className="reports-empty">
+              <div>📦</div>
+              <h3>No reports yet</h3>
+              <p>Be the first to report a lost or found item.</p>
+            </div>
+          ) : (
+            <div className="reports-grid">
+              {reports.map((report) => (
+                <article className="report-list-card" key={report.id}>
+                  <div className="report-list-top">
+                    <span
+                      className={`report-status-badge ${
+                        report.status.toLowerCase()
+                      }`}
+                    >
+                      {report.status}
+                    </span>
+
+                    <span className="report-item-id">
+                      #{report.id}
+                    </span>
+                  </div>
+
+                  <h3>{report.name}</h3>
+
+                  <p className="report-list-description">
+                    {report.description || "No description available."}
+                  </p>
+
+                  <div className="report-list-meta">
+                    <span>
+                      <span>📍</span>
+                      {report.location || "Location unavailable"}
+                    </span>
+
+                    <span>
+                      <span>📅</span>
+                      {formatDate(report.date)}
+                    </span>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
 
       </div>
-
-    </div>
+    </main>
   );
 };
 
