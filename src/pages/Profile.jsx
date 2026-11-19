@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { fetchCurrentUser } from "../services/authService";
@@ -43,8 +44,17 @@ const Profile = () => {
   };
 
   const fields = [
-    { label: "Name", value: user?.name || user?.fullName, empty: "Not provided" },
-    { label: "Email", value: user?.email, empty: "Not provided", copyable: true },
+    {
+      label: "Name",
+      value: user?.name || user?.fullName,
+      empty: "Not provided",
+    },
+    {
+      label: "Email",
+      value: user?.email,
+      empty: "Not provided",
+      copyable: true,
+    },
     ...(user?.id !== undefined
       ? [{ label: "User ID", value: user.id, copyable: true }]
       : []),
@@ -53,6 +63,8 @@ const Profile = () => {
   return (
     <section className="min-h-screen bg-slate-50 px-4 py-10 sm:px-6">
       <div className="mx-auto max-w-2xl">
+
+        {/* Page Heading */}
         <div className="animate-fade-up mb-7">
           <h1 className="text-3xl font-extrabold text-slate-900">
             My Profile
@@ -71,11 +83,13 @@ const Profile = () => {
           >
             <div className="flex items-center gap-4">
               <Skeleton className="h-16 w-16 !rounded-full" />
+
               <div className="flex-1">
                 <Skeleton className="h-5 w-40" />
                 <Skeleton className="mt-2 h-4 w-56" />
               </div>
             </div>
+
             <Skeleton className="mt-8 h-4 w-24" />
             <Skeleton className="mt-2 h-5 w-48" />
             <Skeleton className="mt-6 h-4 w-24" />
@@ -98,12 +112,19 @@ const Profile = () => {
           </div>
         ) : (
           <>
+            {/* Profile Card */}
             <div className="animate-fade-up overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+
+              {/* Gradient Header */}
               <div className="h-20 bg-gradient-to-r from-blue-600 to-indigo-600" />
 
               <div className="px-6 pb-6">
-                <div className="-mt-9 mb-6 flex items-end gap-4">
-                  <div className="flex h-18 w-18 items-center justify-center rounded-full border-4 border-white bg-blue-100 text-2xl font-bold text-blue-700 shadow-sm [height:4.5rem] [width:4.5rem]">
+
+                {/* Avatar and User Information */}
+                <div className="-mt-9 mb-6 flex items-center gap-4">
+
+                  {/* Avatar */}
+                  <div className="flex h-18 w-18 shrink-0 items-center justify-center rounded-full border-4 border-white bg-blue-100 text-2xl font-bold text-blue-700 shadow-sm [height:4.5rem] [width:4.5rem]">
                     {(
                       user?.name ||
                       user?.fullName ||
@@ -114,7 +135,8 @@ const Profile = () => {
                       .toUpperCase()}
                   </div>
 
-                  <div className="min-w-0 pb-1">
+                  {/* Name and Email */}
+                  <div className="min-w-0">
                     <h2 className="truncate text-xl font-bold text-slate-900">
                       {user?.name || user?.fullName || "Student"}
                     </h2>
@@ -123,8 +145,10 @@ const Profile = () => {
                       {user?.email || "Email not available"}
                     </p>
                   </div>
+
                 </div>
 
+                {/* Profile Information */}
                 <dl className="divide-y divide-slate-100 border-t border-slate-100">
                   {fields.map((field) => {
                     const hasValue =
@@ -141,6 +165,7 @@ const Profile = () => {
                           <dt className="text-sm text-slate-500">
                             {field.label}
                           </dt>
+
                           <dd className="truncate font-semibold text-slate-800">
                             {hasValue ? field.value : field.empty}
                           </dd>
@@ -149,7 +174,9 @@ const Profile = () => {
                         {field.copyable && hasValue && (
                           <button
                             type="button"
-                            onClick={() => copy(field.label, field.value)}
+                            onClick={() =>
+                              copy(field.label, field.value)
+                            }
                             aria-label={`Copy ${field.label}`}
                             className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
                           >
@@ -162,24 +189,32 @@ const Profile = () => {
                   })}
                 </dl>
 
+                {/* Profile Notice */}
                 <p className="mt-2 rounded-lg bg-slate-50 p-3 text-sm text-slate-500">
                   Profile editing is not available because the current
                   backend API only provides profile viewing.
                 </p>
+
               </div>
             </div>
 
+            {/* Quick Links */}
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
+
               <Link
                 to="/track-claim"
                 className="group flex items-center justify-between rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md"
               >
                 <div>
-                  <p className="font-bold text-slate-900">My Claims</p>
+                  <p className="font-bold text-slate-900">
+                    My Claims
+                  </p>
+
                   <p className="text-sm text-slate-500">
                     Check the status of your claims
                   </p>
                 </div>
+
                 <ArrowIcon className="h-5 w-5 text-blue-600 transition-transform group-hover:translate-x-1" />
               </Link>
 
@@ -188,13 +223,18 @@ const Profile = () => {
                 className="group flex items-center justify-between rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md"
               >
                 <div>
-                  <p className="font-bold text-slate-900">Report an Item</p>
+                  <p className="font-bold text-slate-900">
+                    Report an Item
+                  </p>
+
                   <p className="text-sm text-slate-500">
                     Lost or found something?
                   </p>
                 </div>
+
                 <ArrowIcon className="h-5 w-5 text-blue-600 transition-transform group-hover:translate-x-1" />
               </Link>
+
             </div>
           </>
         )}
